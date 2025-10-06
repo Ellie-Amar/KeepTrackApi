@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# --- VSCode ---
+.vscode/
+*.code-workspace
+
+# --- Byte-compiled / C extensions ---
+*.so
+
+# --- Distribution / packaging ---
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Pytest / Coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# --- IDEs / OS ---
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Environment files ---
+.env
+.env.*
