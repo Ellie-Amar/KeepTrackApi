@@ -8,14 +8,14 @@ from app.domain.errors import ValidationError
 @dataclass(frozen=True)
 class Task:
     """
-    Dataclass for a task (o rly?).
+    Dataclass for a task. It comes with its own domain rules within it.
     """
     id: UUID
     user_id: UUID
     label: str
     note: Optional[str] = None
     category: Optional[str] = None
-    status: str = "active"  # enum later
+    status: str = "active"  # enum eventually later
     order: int = 0
     created_at: datetime = datetime.now(timezone.utc)
     updated_at: datetime = datetime.now(timezone.utc)

@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: keeptrack-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: keeptrack
+    ports:
+      - "127.0.0.1:5432:5432"   # <= bind explicite côté hôte
+    volumes:
+      - keeptrack_dbdata:/var/lib/postgresql/data  # <= nom unique
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d keeptrack"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  keeptrack_dbdata: {}
