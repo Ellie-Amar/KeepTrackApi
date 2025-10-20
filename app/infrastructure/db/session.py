@@ -1,7 +1,15 @@
+# app/infrastructure/db/session.py
 from __future__ import annotations
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
 import os
+from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    create_async_engine,
+    async_sessionmaker,
+)
+from sqlalchemy.orm import DeclarativeBase
+from app.config.settings import settings
 
 
 class Base(DeclarativeBase):
@@ -9,21 +17,21 @@ class Base(DeclarativeBase):
     pass
 
 
-def get_database_url() -> str:
-    """Read DATABASE_URL from var envs"""
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set")
-    return url
+DATABASE_URL = settings.database_url
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+if DATABASE_URL.startswith("postgresql://") and "+asyncpg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+# enable NullPool only when tests ask for it.
+USE_NULLPOOL = os.getenv("SQLA_NULLPOOL") == "1"
 
 engine: AsyncEngine = create_async_engine(
-    get_database_url(),
-    echo=False,  # true for logs
-    pool_pre_ping=True,  # reconnect automatically if needed
+    DATABASE_URL,
+    echo=False,
+    poolclass=NullPool if USE_NULLPOOL else None,  # keep default in dev/prod
 )
 
 SessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
+    bind=engine, expire_on_commit=False, class_=AsyncSession
 )

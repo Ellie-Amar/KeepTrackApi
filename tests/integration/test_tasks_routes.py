@@ -8,7 +8,7 @@ from app.infrastructure.repositories.in_memory.task_repository_in_memory import 
     TaskRepositoryInMemory,
 )
 
-
+@pytest.mark.integration
 @pytest.fixture(autouse=True)
 def override_repo():
     """Override the task repository with an in-memory implementation for each test."""
@@ -17,7 +17,7 @@ def override_repo():
     yield
     app.dependency_overrides.clear()
 
-
+@pytest.mark.integration
 def test_list_tasks_empty_ok():
     """List endpoint should return an empty list when no tasks exist."""
     client = TestClient(app)
@@ -26,7 +26,7 @@ def test_list_tasks_empty_ok():
     assert response.status_code == 200
     assert response.json() == []
 
-
+@pytest.mark.integration
 def test_create_then_list_tasks_ok():
     """After creating a task, it should appear in the list endpoint."""
     client = TestClient(app)
@@ -50,7 +50,7 @@ def test_create_then_list_tasks_ok():
     items = response.json()
     assert any(it["id"] == created["id"] for it in items)
 
-
+@pytest.mark.integration
 def test_create_task_validation_ko():
     """Should return 422 when label is empty."""
     client = TestClient(app)
