@@ -1,6 +1,7 @@
 from __future__ import annotations
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete as sqla_delete
 
 from app.application.ports.task_repository import ITaskRepository
 from app.domain.entities.task import Task
@@ -33,19 +34,58 @@ class TaskRepositorySQL(ITaskRepository):
     async def list(self) -> list[Task]:
         """Return all tasks from table as domain Task."""
         result = await self.session.execute(select(TaskORM))
-        rows: list[tuple[TaskORM]] = result.all()  # type: ignore
-
+        rows = result.scalars().all()
         return [
             Task(
-                id=row[0].id,
-                user_id=row[0].user_id,
-                label=row[0].label,
-                note=row[0].note,
-                category=row[0].category,
-                status=row[0].status,
-                order=row[0].order,
-                created_at=row[0].created_at,
-                updated_at=row[0].updated_at,
+                id=row.id,
+                user_id=row.user_id,
+                label=row.label,
+                note=row.note,
+                category=row.category,
+                status=row.status,
+                order=row.order,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
             )
             for row in rows
         ]
+
+    async def get(self, task_id: UUID) -> Task | None:
+        """Return a domain Task or None if not found."""
+        result = await self.session.execute(
+            select(TaskORM).where(TaskORM.id == task_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return Task(
+            id=row.id,
+            user_id=row.user_id,
+            label=row.label,
+            note=row.note,
+            category=row.category,
+            status=row.status,
+            order=row.order,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+        )
+
+    async def update(self, task: Task) -> Task:
+        row = await self.session.get(TaskORM, task.id)
+        if row is None:
+            return task
+        row.user_id = task.user_id
+        row.label = task.label
+        row.note = task.note
+        row.category = task.category
+        row.status = task.status
+        row.order = task.order
+        row.created_at = task.created_at
+        row.updated_at = task.updated_at
+        await self.session.commit()
+        return task
+
+    async def delete(self, task_id: UUID) -> None:
+        """Delete row by id (hard delete)."""
+        await self.session.execute(sqla_delete(TaskORM).where(TaskORM.id == task_id))
+        await self.session.commit()

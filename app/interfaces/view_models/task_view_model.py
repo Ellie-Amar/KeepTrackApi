@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
@@ -28,3 +29,10 @@ class TaskRead(ViewModel):
     order: int | None
     created_at: datetime
     updated_at: datetime
+
+class TaskUpdate(ViewModel):
+    label: Optional[str] = Field(default=None, min_length=1)
+    note: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[str] = None
+    order: Optional[int] = None
