@@ -44,6 +44,7 @@ async def list_tasks(
     tasks = await use_case.execute()
     return tasks
 
+
 @router.get("/{task_id}", response_model=TaskRead)
 async def get_task(
     task_id: UUID,
@@ -54,6 +55,7 @@ async def get_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
 
 @router.patch("/{task_id}", response_model=TaskRead)
 async def update_task(
@@ -68,6 +70,7 @@ async def update_task(
     if updated is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return updated
+
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(

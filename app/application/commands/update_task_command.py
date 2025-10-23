@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from typing import Optional
 
+
 class UpdateTaskCommand(BaseModel):
     id: UUID
     label: Optional[str] = None

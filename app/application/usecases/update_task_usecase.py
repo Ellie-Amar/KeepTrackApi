@@ -5,6 +5,7 @@ from app.application.ports.task_repository import ITaskRepository
 from app.application.commands.update_task_command import UpdateTaskCommand
 from app.domain.entities.task import Task
 
+
 class UpdateTask:
     """Use case to partially update a task by its uuid.
     Note: domain entity remains unchanged; we use dataclasses.replace to build a new instance.
@@ -32,7 +33,9 @@ class UpdateTask:
 
         # create a new immutable dataclass instance (no domain change)
         # fall back to existing when None.
-        updated = dataclasses.replace(existing, **new_values) if new_values else existing
+        updated = (
+            dataclasses.replace(existing, **new_values) if new_values else existing
+        )
 
         await self.repo.update(updated)
         return updated

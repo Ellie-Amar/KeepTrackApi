@@ -5,11 +5,13 @@ from typing import Optional
 from uuid import UUID, uuid4
 from app.domain.errors import ValidationError
 
+
 @dataclass(frozen=True)
 class Task:
     """
     Dataclass for a task. It comes with its own domain rules within it.
     """
+
     id: UUID
     user_id: UUID
     label: str
@@ -38,10 +40,14 @@ class Task:
         object.__setattr__(self, "label", lbl)
 
     @classmethod
-    def new(cls, user_id: UUID, label: str,
-            note: Optional[str] = None,
-            category: Optional[str] = None,
-            order: int = 0) -> "Task":
+    def new(
+        cls,
+        user_id: UUID,
+        label: str,
+        note: Optional[str] = None,
+        category: Optional[str] = None,
+        order: int = 0,
+    ) -> "Task":
         """
         Factory method to create a new Task.
         Automatically assigns uuid and timestamps.

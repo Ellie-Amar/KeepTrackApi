@@ -49,6 +49,7 @@ async def test_sql_create_empty_label_task_ko(client: AsyncClient):
     r = await client.post("/v1/tasks", json=payload)
     assert r.status_code == 422, r.text
 
+
 @pytest.mark.sql
 @pytest.mark.asyncio
 async def test_sql_get_task_by_id_ok(client: AsyncClient):

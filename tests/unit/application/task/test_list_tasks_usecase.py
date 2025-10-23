@@ -10,6 +10,7 @@ from app.infrastructure.repositories.in_memory.task_repository_in_memory import 
     TaskRepositoryInMemory,
 )
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_list_tasks_empty_ok():
@@ -21,6 +22,7 @@ async def test_list_tasks_empty_ok():
 
     assert isinstance(items, list)
     assert items == []
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio

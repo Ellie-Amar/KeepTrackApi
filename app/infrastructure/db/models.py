@@ -16,6 +16,7 @@ def utcnow() -> datetime:
 
 class TaskORM(Base):
     """SQLAlchemy ORM model for the tasks table."""
+
     __tablename__ = "tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -24,21 +25,11 @@ class TaskORM(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), index=True, nullable=False
     )
-    label: Mapped[str] = mapped_column(
-        String(200), nullable=False
-    )
-    note: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
-    category: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
-    status: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="active"
-    )
-    order: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
+    order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

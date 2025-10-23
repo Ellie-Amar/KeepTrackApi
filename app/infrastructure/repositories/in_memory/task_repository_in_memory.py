@@ -24,7 +24,7 @@ class TaskRepositoryInMemory(ITaskRepository):
             if t.id == task_id:
                 return t
         return None
-    
+
     async def update(self, task: Task) -> Task:
         for i, t in enumerate(self._tasks):
             if t.id == task.id:

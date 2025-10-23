@@ -8,7 +8,7 @@ from app.infrastructure.repositories.in_memory.task_repository_in_memory import 
     TaskRepositoryInMemory,
 )
 
-@pytest.mark.integration
+
 @pytest.fixture(autouse=True)
 def override_repo():
     """Override the task repository with an in-memory implementation for each test."""
@@ -16,6 +16,7 @@ def override_repo():
     app.dependency_overrides[get_task_repo] = lambda: repo
     yield
     app.dependency_overrides.clear()
+
 
 @pytest.mark.integration
 def test_list_tasks_empty_ok():
@@ -25,6 +26,7 @@ def test_list_tasks_empty_ok():
 
     assert response.status_code == 200
     assert response.json() == []
+
 
 @pytest.mark.integration
 def test_create_then_list_tasks_ok():
@@ -50,6 +52,7 @@ def test_create_then_list_tasks_ok():
     items = response.json()
     assert any(it["id"] == created["id"] for it in items)
 
+
 @pytest.mark.integration
 def test_create_task_validation_ko():
     """Should return 422 when label is empty."""
@@ -61,6 +64,7 @@ def test_create_task_validation_ko():
     response = client.post("/v1/tasks", json=payload)
 
     assert response.status_code == 422
+
 
 @pytest.mark.integration
 def test_get_task_by_id_ok():
@@ -98,7 +102,9 @@ def test_get_task_by_id_not_found_ko():
 def test_patch_task_partial_update_ok():
     """PATCH should update only provided fields and return 200."""
     client = TestClient(app)
-    r_create = client.post("/v1/tasks", json={"userId": str(uuid4()), "label": "Before"})
+    r_create = client.post(
+        "/v1/tasks", json={"userId": str(uuid4()), "label": "Before"}
+    )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
@@ -140,7 +146,9 @@ def test_patch_task_validation_label_empty_ko():
 def test_delete_task_ok_then_not_found_ko():
     """DELETE should return 204 once, then 404 if called again (semantics A)."""
     client = TestClient(app)
-    r_create = client.post("/v1/tasks", json={"userId": str(uuid4()), "label": "ToDelete"})
+    r_create = client.post(
+        "/v1/tasks", json={"userId": str(uuid4()), "label": "ToDelete"}
+    )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
@@ -150,4 +158,3 @@ def test_delete_task_ok_then_not_found_ko():
     r_del2 = client.delete(f"/v1/tasks/{created['id']}")
     assert r_del2.status_code == 404
     assert r_del2.json()["detail"] == "Task not found"
-

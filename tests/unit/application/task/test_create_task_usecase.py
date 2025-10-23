@@ -5,7 +5,10 @@ from datetime import timezone
 from app.application.commands.create_task_command import CreateTaskCommand
 from app.application.usecases.create_task_usecase import CreateTask
 from app.domain.errors import ValidationError
-from app.infrastructure.repositories.in_memory.task_repository_in_memory import TaskRepositoryInMemory
+from app.infrastructure.repositories.in_memory.task_repository_in_memory import (
+    TaskRepositoryInMemory,
+)
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -22,6 +25,7 @@ async def test_create_task_ok():
     assert task.label == "Test label"
     assert task.user_id == cmd.user_id
     assert task.created_at.tzinfo == timezone.utc
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio

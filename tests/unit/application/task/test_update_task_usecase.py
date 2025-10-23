@@ -5,7 +5,9 @@ from app.application.usecases.update_task_usecase import UpdateTask
 from app.application.usecases.create_task_usecase import CreateTask
 from app.application.commands.create_task_command import CreateTaskCommand
 from app.application.commands.update_task_command import UpdateTaskCommand
-from app.infrastructure.repositories.in_memory.task_repository_in_memory import TaskRepositoryInMemory
+from app.infrastructure.repositories.in_memory.task_repository_in_memory import (
+    TaskRepositoryInMemory,
+)
 
 
 @pytest.mark.unit
@@ -16,7 +18,9 @@ async def test_update_task_partial_ok():
     uc_create = CreateTask(repo)
     uc_update = UpdateTask(repo)
 
-    created = await uc_create.execute(CreateTaskCommand(user_id=uuid4(), label="Before"))
+    created = await uc_create.execute(
+        CreateTaskCommand(user_id=uuid4(), label="Before")
+    )
 
     updated = await uc_update.execute(
         UpdateTaskCommand(id=created.id, label="After", note="updated")

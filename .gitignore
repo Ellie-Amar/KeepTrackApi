@@ -38,6 +38,8 @@ var/
 htmlcov/
 .tox/
 .nox/
+.mypy_cache/
+.ruff_cache/
 
 # --- IDEs / OS ---
 .idea/

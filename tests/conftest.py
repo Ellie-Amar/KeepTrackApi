@@ -9,6 +9,7 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 
+
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     """HTTP client sharing the same event loop as the tests."""
