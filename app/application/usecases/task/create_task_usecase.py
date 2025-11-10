@@ -9,7 +9,7 @@ class CreateTask:
 
     async def execute(self, cmd: CreateTaskCommand) -> Task:
         task = Task.new(
-            user_id=cmd.user_id,
+            owner_id=cmd.owner_id,
             label=cmd.label,
             category=cmd.category,
             note=cmd.note,

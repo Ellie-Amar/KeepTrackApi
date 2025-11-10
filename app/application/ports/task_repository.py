@@ -1,20 +1,12 @@
-from abc import ABC, abstractmethod
+from typing import List, Protocol
 from uuid import UUID
 from app.domain.entities.task import Task
 
 
-class ITaskRepository(ABC):
-    @abstractmethod
+class ITaskRepository(Protocol):
     async def add(self, task: Task) -> None: ...
-
-    @abstractmethod
-    async def list(self) -> list[Task]: ...
-
-    @abstractmethod
+    async def list(self) -> List[Task]: ...
+    async def list_by_user(self, user_id: UUID) -> List[Task]: ...
     async def get(self, task_id: UUID) -> Task | None: ...
-
-    @abstractmethod
     async def update(self, task: Task) -> Task: ...
-
-    @abstractmethod
     async def delete(self, task_id: UUID) -> None: ...

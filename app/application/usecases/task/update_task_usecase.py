@@ -31,8 +31,6 @@ class UpdateTask:
         if new_values:
             new_values["updated_at"] = datetime.now(timezone.utc)
 
-        # create a new immutable dataclass instance (no domain change)
-        # fall back to existing when None.
         updated = (
             dataclasses.replace(existing, **new_values) if new_values else existing
         )

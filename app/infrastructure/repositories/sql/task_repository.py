@@ -1,11 +1,15 @@
 from __future__ import annotations
+from typing import List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete as sqla_delete
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, delete as sqla_delete, insert
 
 from app.application.ports.task_repository import ITaskRepository
 from app.domain.entities.task import Task
+from app.domain.errors import ValidationError
 from app.infrastructure.db.models import TaskORM
+from app.infrastructure.db.models import UserORM, tasks_users
 
 
 class TaskRepositorySQL(ITaskRepository):
@@ -16,10 +20,15 @@ class TaskRepositorySQL(ITaskRepository):
 
     async def add(self, task: Task) -> None:
         """Add a domain Task into the tasks table."""
+
+        owner = await self.session.get(UserORM, task.owner_id)
+        if owner is None:
+            raise ValidationError("owner_id does not refer to an existing user")
+
         self.session.add(
             TaskORM(
                 id=task.id,
-                user_id=task.user_id,
+                owner_id=task.owner_id,
                 label=task.label,
                 note=task.note,
                 category=task.category,
@@ -29,16 +38,48 @@ class TaskRepositorySQL(ITaskRepository):
                 updated_at=task.updated_at,
             )
         )
-        await self.session.commit()
+        await self.session.flush()
 
-    async def list(self) -> list[Task]:
+        await self.session.execute(
+            insert(tasks_users).values(task_id=task.id, user_id=task.owner_id)
+        )
+
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise
+
+    async def list(self) -> List[Task]:
         """Return all tasks from table as domain Task."""
         result = await self.session.execute(select(TaskORM))
         rows = result.scalars().all()
         return [
             Task(
                 id=row.id,
-                user_id=row.user_id,
+                owner_id=row.owner_id,
+                label=row.label,
+                note=row.note,
+                category=row.category,
+                status=row.status,
+                order=row.order,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            for row in rows
+        ]
+
+    async def list_by_user(self, user_id: UUID) -> List[Task]:
+        stmt = (
+            select(TaskORM)
+            .join(tasks_users, tasks_users.c.task_id == TaskORM.id)
+            .where(tasks_users.c.user_id == user_id)
+        )
+        rows = (await self.session.execute(stmt)).scalars().unique().all()
+        return [
+            Task(
+                id=row.id,
+                owner_id=row.owner_id,
                 label=row.label,
                 note=row.note,
                 category=row.category,
@@ -60,7 +101,7 @@ class TaskRepositorySQL(ITaskRepository):
             return None
         return Task(
             id=row.id,
-            user_id=row.user_id,
+            owner_id=row.owner_id,
             label=row.label,
             note=row.note,
             category=row.category,
@@ -74,7 +115,7 @@ class TaskRepositorySQL(ITaskRepository):
         row = await self.session.get(TaskORM, task.id)
         if row is None:
             return task
-        row.user_id = task.user_id
+        row.owner_id = task.owner_id
         row.label = task.label
         row.note = task.note
         row.category = task.category

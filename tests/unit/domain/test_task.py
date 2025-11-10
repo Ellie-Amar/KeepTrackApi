@@ -10,7 +10,7 @@ from app.domain.errors import ValidationError
 @pytest.mark.unit
 def test_create_defaults_ok():
     """test with minimal valid payload and default fields"""
-    t = Task.new(user_id=uuid4(), label="Test")
+    t = Task.new(owner_id=uuid4(), label="Test")
     assert t.status == "active"
     assert t.order == 0
     assert t.created_at.tzinfo is timezone.utc
@@ -21,7 +21,7 @@ def test_create_defaults_ok():
 @pytest.mark.unit
 def test_label_is_normalized_ok():
     """test label normalization"""
-    t = Task.new(user_id=uuid4(), label="  Read  ")
+    t = Task.new(owner_id=uuid4(), label="  Read  ")
     assert t.label == "Read"
 
 
@@ -29,7 +29,7 @@ def test_label_is_normalized_ok():
 def test_empty_label_raises_ko():
     """test blank label"""
     with pytest.raises(ValidationError):
-        Task.new(user_id=uuid4(), label="   ")
+        Task.new(owner_id=uuid4(), label="   ")
 
 
 @pytest.mark.unit
@@ -39,7 +39,7 @@ def test_negative_order_raises_ko():
         now = datetime.now(timezone.utc)
         Task(
             id=uuid4(),
-            user_id=uuid4(),
+            owner_id=uuid4(),
             label="X",
             order=-1,
             created_at=now,
@@ -55,7 +55,7 @@ def test_created_at_cannot_be_after_updated_at_ko():
     with pytest.raises(ValidationError):
         Task(
             id=uuid4(),
-            user_id=uuid4(),
+            owner_id=uuid4(),
             label="X",
             created_at=after,
             updated_at=before,
@@ -65,6 +65,6 @@ def test_created_at_cannot_be_after_updated_at_ko():
 @pytest.mark.unit
 def test_entity_is_immutable_ko():
     """test frozen dataclass"""
-    t = Task.new(user_id=uuid4(), label="X")
+    t = Task.new(owner_id=uuid4(), label="X")
     with pytest.raises(dataclasses.FrozenInstanceError):
         t.label = "Y"  # type: ignore

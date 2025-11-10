@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from uuid import uuid4
+
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
@@ -16,22 +17,25 @@ async def clean_tasks_table():
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_create_then_list_ok(client: AsyncClient):
+async def test_sql_create_then_list_ok(
+    client: AsyncClient, auth_factory
+):
     """Create a task then list all tasks; the created one must appear."""
+    ctx = await auth_factory()
     payload = {
-        "userId": str(uuid4()),
         "label": "Read a book",
         "note": "20 minutes",
         "category": "personal",
     }
 
-    r = await client.post("/v1/tasks", json=payload)
+    r = await client.post("/v1/tasks", json=payload, headers=ctx.headers)
     assert r.status_code == 201, r.text
     created = r.json()
     assert created["label"] == "Read a book"
     assert "id" in created
+    assert created["ownerId"] == ctx.user["id"]
 
-    r2 = await client.get("/v1/tasks")
+    r2 = await client.get("/v1/tasks", headers=ctx.headers)
     assert r2.status_code == 200, r2.text
     items = r2.json()
     assert any(it["id"] == created["id"] for it in items)
@@ -39,32 +43,34 @@ async def test_sql_create_then_list_ok(client: AsyncClient):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_create_empty_label_task_ko(client: AsyncClient):
+async def test_sql_create_empty_label_task_ko(
+    client: AsyncClient, auth_factory
+):
     """Creating a task with empty label should fail validation (422)."""
+    ctx = await auth_factory()
     payload = {
-        "userId": str(uuid4()),
         "label": "",  # invalid: min length 1
     }
 
-    r = await client.post("/v1/tasks", json=payload)
+    r = await client.post("/v1/tasks", json=payload, headers=ctx.headers)
     assert r.status_code == 422, r.text
 
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_get_task_by_id_ok(client: AsyncClient):
+async def test_sql_get_task_by_id_ok(client: AsyncClient, auth_factory):
     """After creating a task, GET by id should return 200 with the same task."""
+    ctx = await auth_factory()
     payload = {
-        "userId": str(uuid4()),
         "label": "SQL Read",
         "note": "chapter 1",
         "category": "personal",
     }
-    r_create = await client.post("/v1/tasks", json=payload)
+    r_create = await client.post("/v1/tasks", json=payload, headers=ctx.headers)
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
-    r_get = await client.get(f"/v1/tasks/{created['id']}")
+    r_get = await client.get(f"/v1/tasks/{created['id']}", headers=ctx.headers)
     assert r_get.status_code == 200, r_get.text
     body = r_get.json()
     assert body["id"] == created["id"]
@@ -74,20 +80,27 @@ async def test_sql_get_task_by_id_ok(client: AsyncClient):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_get_task_by_id_not_found_ko(client: AsyncClient):
+async def test_sql_get_task_by_id_not_found_ko(
+    client: AsyncClient, auth_factory
+):
     """GET by id should return 404 for an unknown id."""
-    r = await client.get(f"/v1/tasks/{uuid4()}")
+    ctx = await auth_factory()
+    r = await client.get(f"/v1/tasks/{uuid4()}", headers=ctx.headers)
     assert r.status_code == 404, r.text
     assert r.json()["detail"] == "Task not found"
 
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_patch_task_partial_update_ok(client: AsyncClient):
+async def test_sql_patch_task_partial_update_ok(
+    client: AsyncClient, auth_factory
+):
     """PATCH should update only provided fields and return 200."""
+    ctx = await auth_factory()
     r_create = await client.post(
         "/v1/tasks",
-        json={"userId": str(uuid4()), "label": "Before", "note": "n"},
+        json={"label": "Before", "note": "n"},
+        headers=ctx.headers,
     )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
@@ -95,6 +108,7 @@ async def test_sql_patch_task_partial_update_ok(client: AsyncClient):
     r_patch = await client.patch(
         f"/v1/tasks/{created['id']}",
         json={"label": "After", "note": "updated"},
+        headers=ctx.headers,
     )
     assert r_patch.status_code == 200, r_patch.text
     body = r_patch.json()
@@ -105,42 +119,155 @@ async def test_sql_patch_task_partial_update_ok(client: AsyncClient):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_patch_task_not_found_ko(client: AsyncClient):
+async def test_sql_patch_task_not_found_ko(
+    client: AsyncClient, auth_factory
+):
     """PATCH unknown id should return 404."""
-    r = await client.patch(f"/v1/tasks/{uuid4()}", json={"label": "Nope"})
+    ctx = await auth_factory()
+    r = await client.patch(
+        f"/v1/tasks/{uuid4()}",
+        json={"label": "Nope"},
+        headers=ctx.headers,
+    )
     assert r.status_code == 404, r.text
     assert r.json()["detail"] == "Task not found"
 
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_patch_task_validation_label_empty_ko(client: AsyncClient):
+async def test_sql_patch_task_validation_label_empty_ko(
+    client: AsyncClient, auth_factory
+):
     """PATCH with label='' should fail validation (422)."""
+    ctx = await auth_factory()
     r_create = await client.post(
         "/v1/tasks",
-        json={"userId": str(uuid4()), "label": "Ok"},
+        json={"label": "Ok"},
+        headers=ctx.headers,
     )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
-    r_patch = await client.patch(f"/v1/tasks/{created['id']}", json={"label": ""})
+    r_patch = await client.patch(
+        f"/v1/tasks/{created['id']}",
+        json={"label": ""},
+        headers=ctx.headers,
+    )
     assert r_patch.status_code == 422, r_patch.text
 
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_delete_task_then_not_found_ko(client: AsyncClient):
+async def test_sql_delete_task_then_not_found_ko(
+    client: AsyncClient, auth_factory
+):
     """DELETE should return 204 once, then 404 if called again."""
+    ctx = await auth_factory()
     r_create = await client.post(
         "/v1/tasks",
-        json={"userId": str(uuid4()), "label": "ToDelete"},
+        json={"label": "ToDelete"},
+        headers=ctx.headers,
     )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
-    r_del1 = await client.delete(f"/v1/tasks/{created['id']}")
+    r_del1 = await client.delete(
+        f"/v1/tasks/{created['id']}", headers=ctx.headers
+    )
     assert r_del1.status_code == 204, r_del1.text
 
-    r_del2 = await client.delete(f"/v1/tasks/{created['id']}")
+    r_del2 = await client.delete(
+        f"/v1/tasks/{created['id']}", headers=ctx.headers
+    )
     assert r_del2.status_code == 404, r_del2.text
     assert r_del2.json()["detail"] == "Task not found"
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_create_task_uses_authenticated_owner(
+    client: AsyncClient, auth_factory
+):
+    """OwnerId should be derived from the authenticated user."""
+    ctx = await auth_factory(email=f"auth-owner-{uuid4()}@example.com")
+
+    response = await client.post(
+        "/v1/tasks",
+        json={"label": "First task"},
+        headers=ctx.headers,
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["ownerId"] == ctx.user["id"]
+    assert body["label"] == "First task"
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_create_task_without_token_unauthorized(client: AsyncClient):
+    """Creating a task without credentials should fail with 401."""
+    r = await client.post("/v1/tasks", json={"label": "Should fail"})
+    assert r.status_code == 401, r.text
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_list_only_returns_user_tasks(
+    client: AsyncClient, auth_factory
+):
+    """A user should not see tasks owned by others."""
+    ctx_owner = await auth_factory(email=f"owner-{uuid4()}@example.com")
+    ctx_other = await auth_factory(email=f"other-{uuid4()}@example.com")
+
+    await client.post(
+        "/v1/tasks",
+        json={"label": "Owner task"},
+        headers=ctx_owner.headers,
+    )
+    await client.post(
+        "/v1/tasks",
+        json={"label": "Other task"},
+        headers=ctx_other.headers,
+    )
+
+    response = await client.get("/v1/tasks", headers=ctx_other.headers)
+    assert response.status_code == 200, response.text
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["label"] == "Other task"
+    assert items[0]["ownerId"] == ctx_other.user["id"]
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_access_denied_for_other_user(
+    client: AsyncClient, auth_factory
+):
+    """Another user must get 404 when accessing someone else's task."""
+    ctx_owner = await auth_factory(email=f"owner-access-{uuid4()}@example.com")
+    ctx_other = await auth_factory(email=f"other-access-{uuid4()}@example.com")
+
+    create_resp = await client.post(
+        "/v1/tasks",
+        json={"label": "Owner secret"},
+        headers=ctx_owner.headers,
+    )
+    assert create_resp.status_code == 201, create_resp.text
+    task = create_resp.json()
+
+    for method in ("get", "patch", "delete"):
+        if method == "get":
+            resp = await client.get(
+                f"/v1/tasks/{task['id']}", headers=ctx_other.headers
+            )
+        elif method == "patch":
+            resp = await client.patch(
+                f"/v1/tasks/{task['id']}",
+                json={"label": "Hack"},
+                headers=ctx_other.headers,
+            )
+        else:
+            resp = await client.delete(
+                f"/v1/tasks/{task['id']}", headers=ctx_other.headers
+            )
+        assert resp.status_code == 404

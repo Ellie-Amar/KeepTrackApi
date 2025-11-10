@@ -1,11 +1,11 @@
 import pytest
 from uuid import uuid4
 
-from app.application.usecases.update_task_usecase import UpdateTask
-from app.application.usecases.create_task_usecase import CreateTask
+from app.application.usecases.task.update_task_usecase import UpdateTask
+from app.application.usecases.task.create_task_usecase import CreateTask
 from app.application.commands.create_task_command import CreateTaskCommand
 from app.application.commands.update_task_command import UpdateTaskCommand
-from app.infrastructure.repositories.in_memory.task_repository_in_memory import (
+from app.infrastructure.repositories.in_memory.task_repository import (
     TaskRepositoryInMemory,
 )
 
@@ -19,7 +19,7 @@ async def test_update_task_partial_ok():
     uc_update = UpdateTask(repo)
 
     created = await uc_create.execute(
-        CreateTaskCommand(user_id=uuid4(), label="Before")
+        CreateTaskCommand(owner_id=uuid4(), label="Before")
     )
 
     updated = await uc_update.execute(

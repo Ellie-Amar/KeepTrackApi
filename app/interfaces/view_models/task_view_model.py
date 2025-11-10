@@ -2,28 +2,21 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
-from pydantic.alias_generators import to_camel
+from pydantic import Field
 
-
-class ViewModel(BaseModel):
-    model_config = {
-        "alias_generator": to_camel,  # snake → camel
-        "populate_by_name": True,  # accepts snake_case inputs
-        "from_attributes": True,  # permits reading attributes
-    }
+from app.interfaces.view_models.base_view_model import ViewModel
 
 
 class TaskCreate(ViewModel):
-    user_id: UUID
     label: str = Field(..., min_length=1)
     note: str | None = None
     category: str | None = None
+    order: int = 0
 
 
 class TaskRead(ViewModel):
     id: UUID
-    user_id: UUID
+    owner_id: UUID
     label: str
     note: str | None
     category: str | None

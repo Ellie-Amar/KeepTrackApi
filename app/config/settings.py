@@ -8,6 +8,10 @@ class Settings(BaseSettings):
 
     database_url: str | None = None
 
+    jwt_secret: str = "uwu-secret"
+    jwt_issuer: str = "keeptrack"
+    jwt_access_ttl_minutes: int = 60
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

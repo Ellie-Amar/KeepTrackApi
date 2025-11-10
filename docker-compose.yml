@@ -7,9 +7,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: keeptrack
     ports:
-      - "127.0.0.1:5432:5432"   # <= bind explicite côté hôte
+      - "127.0.0.1:5432:5432"
     volumes:
-      - keeptrack_dbdata:/var/lib/postgresql/data  # <= nom unique
+      - keeptrack_dbdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d keeptrack"]
       interval: 3s

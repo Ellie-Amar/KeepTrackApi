@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class CreateTaskCommand(BaseModel):
-    user_id: UUID
+    owner_id: UUID
     label: str
     category: Optional[str] = None
     note: Optional[str] = None

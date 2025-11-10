@@ -1,12 +1,17 @@
-from uuid import uuid4
-from fastapi.testclient import TestClient
-import pytest
+from __future__ import annotations
 
-from app.main import app
+from uuid import uuid4
+
+import pytest
+from fastapi.testclient import TestClient
+
 from app.interfaces.dependencies import get_task_repo
-from app.infrastructure.repositories.in_memory.task_repository_in_memory import (
+from app.interfaces.security import get_current_user
+from app.main import app
+from app.infrastructure.repositories.in_memory.task_repository import (
     TaskRepositoryInMemory,
 )
+from tests.integration.helpers.auth import make_set_current_user
 
 
 @pytest.fixture(autouse=True)
@@ -15,12 +20,20 @@ def override_repo():
     repo = TaskRepositoryInMemory()
     app.dependency_overrides[get_task_repo] = lambda: repo
     yield
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_task_repo, None)
+
+
+@pytest.fixture
+def set_current_user():
+    helper = make_set_current_user(app)
+    yield helper
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.integration
-def test_list_tasks_empty_ok():
+def test_list_tasks_empty_ok(set_current_user):
     """List endpoint should return an empty list when no tasks exist."""
+    set_current_user()
     client = TestClient(app)
     response = client.get("/v1/tasks")
 
@@ -29,11 +42,11 @@ def test_list_tasks_empty_ok():
 
 
 @pytest.mark.integration
-def test_create_then_list_tasks_ok():
+def test_create_then_list_tasks_ok(set_current_user):
     """After creating a task, it should appear in the list endpoint."""
+    user = set_current_user(email="owner@example.test")
     client = TestClient(app)
     payload = {
-        "userId": str(uuid4()),  # camelCase supported via alias generator
         "label": "Drink water",
         "note": "500ml",
         "category": "health",
@@ -44,6 +57,7 @@ def test_create_then_list_tasks_ok():
     assert response.status_code == 201, response.text
     created = response.json()
     assert created["label"] == "Drink water"
+    assert created["ownerId"] == str(user.id)
     assert "id" in created
 
     # List
@@ -54,11 +68,11 @@ def test_create_then_list_tasks_ok():
 
 
 @pytest.mark.integration
-def test_create_task_validation_ko():
+def test_create_task_validation_ko(set_current_user):
     """Should return 422 when label is empty."""
+    set_current_user()
     client = TestClient(app)
     payload = {
-        "userId": str(uuid4()),
         "label": "",  # invalid (min_length=1)
     }
     response = client.post("/v1/tasks", json=payload)
@@ -67,11 +81,11 @@ def test_create_task_validation_ko():
 
 
 @pytest.mark.integration
-def test_get_task_by_id_ok():
+def test_get_task_by_id_ok(set_current_user):
     """After creating a task, GET by id should return 200 with the same task."""
+    set_current_user()
     client = TestClient(app)
     payload = {
-        "userId": str(uuid4()),
         "label": "Read book",
         "note": "Chapter 1",
         "category": "personal",
@@ -90,8 +104,9 @@ def test_get_task_by_id_ok():
 
 
 @pytest.mark.integration
-def test_get_task_by_id_not_found_ko():
+def test_get_task_by_id_not_found_ko(set_current_user):
     """GET by id should return 404 for unknown id."""
+    set_current_user()
     client = TestClient(app)
     r = client.get(f"/v1/tasks/{uuid4()}")
     assert r.status_code == 404
@@ -99,11 +114,12 @@ def test_get_task_by_id_not_found_ko():
 
 
 @pytest.mark.integration
-def test_patch_task_partial_update_ok():
+def test_patch_task_partial_update_ok(set_current_user):
     """PATCH should update only provided fields and return 200."""
+    set_current_user()
     client = TestClient(app)
     r_create = client.post(
-        "/v1/tasks", json={"userId": str(uuid4()), "label": "Before"}
+        "/v1/tasks", json={"label": "Before"}
     )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
@@ -121,8 +137,9 @@ def test_patch_task_partial_update_ok():
 
 
 @pytest.mark.integration
-def test_patch_task_not_found_ko():
+def test_patch_task_not_found_ko(set_current_user):
     """PATCH unknown id should return 404."""
+    set_current_user()
     client = TestClient(app)
     r = client.patch(f"/v1/tasks/{uuid4()}", json={"label": "Nope"})
     assert r.status_code == 404
@@ -130,11 +147,12 @@ def test_patch_task_not_found_ko():
 
 
 @pytest.mark.integration
-def test_patch_task_validation_label_empty_ko():
+def test_patch_task_validation_label_empty_ko(set_current_user):
     """PATCH with label='' should return 422 (min_length=1 on TaskUpdate)."""
+    set_current_user()
     client = TestClient(app)
     # Create a valid task first
-    r_create = client.post("/v1/tasks", json={"userId": str(uuid4()), "label": "Ok"})
+    r_create = client.post("/v1/tasks", json={"label": "Ok"})
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
@@ -143,11 +161,12 @@ def test_patch_task_validation_label_empty_ko():
 
 
 @pytest.mark.integration
-def test_delete_task_ok_then_not_found_ko():
+def test_delete_task_ok_then_not_found_ko(set_current_user):
     """DELETE should return 204 once, then 404 if called again (semantics A)."""
+    set_current_user()
     client = TestClient(app)
     r_create = client.post(
-        "/v1/tasks", json={"userId": str(uuid4()), "label": "ToDelete"}
+        "/v1/tasks", json={"label": "ToDelete"}
     )
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
@@ -158,3 +177,44 @@ def test_delete_task_ok_then_not_found_ko():
     r_del2 = client.delete(f"/v1/tasks/{created['id']}")
     assert r_del2.status_code == 404
     assert r_del2.json()["detail"] == "Task not found"
+
+
+@pytest.mark.integration
+def test_list_tasks_is_scoped_to_authenticated_user(set_current_user):
+    """Ensure each user only sees their own tasks in-memory as well."""
+    client = TestClient(app)
+    set_current_user(email="owner@example.test")
+    client.post("/v1/tasks", json={"label": "Owner task"})
+
+    other = set_current_user(email="other@example.test")
+    client.post("/v1/tasks", json={"label": "Other task"})
+
+    response = client.get("/v1/tasks")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["label"] == "Other task"
+    assert items[0]["ownerId"] == str(other.id)
+
+
+@pytest.mark.integration
+def test_task_access_denied_for_other_user(set_current_user):
+    """GET/PATCH/DELETE must return 404 for a different authenticated user."""
+    client = TestClient(app)
+    _ = set_current_user(email="owner-access@example.test")
+    create_resp = client.post("/v1/tasks", json={"label": "Owner secret"})
+    assert create_resp.status_code == 201, create_resp.text
+    task_id = create_resp.json()["id"]
+
+    set_current_user(email="intruder@example.test")
+
+    resp_get = client.get(f"/v1/tasks/{task_id}")
+    assert resp_get.status_code == 404
+
+    resp_patch = client.patch(
+        f"/v1/tasks/{task_id}", json={"label": "Hack attempt"}
+    )
+    assert resp_patch.status_code == 404
+
+    resp_delete = client.delete(f"/v1/tasks/{task_id}")
+    assert resp_delete.status_code == 404
