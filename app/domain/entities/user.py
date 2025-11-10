@@ -19,7 +19,9 @@ class User(BaseEntity):
     is_active: bool = True
 
     def __post_init__(self) -> None:
-        BaseEntity.__post_init__(self)  # validates timestamps consistency and UTC from BaseEntity
+        BaseEntity.__post_init__(
+            self
+        )  # validates timestamps consistency and UTC from BaseEntity
 
         # normalize and validate email
         normalized = (self.email or "").strip().lower()

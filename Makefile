@@ -1,4 +1,4 @@
-# ===== Makefile pour le projet FastAPI / PostgreSQL =====
+# ===== Makefile for the FastAPI / PostgreSQL project =====
 PY ?= python3
 DEFAULT_MARKER ?= "not sql"
 
@@ -6,42 +6,42 @@ DEFAULT_MARKER ?= "not sql"
 GREEN := \033[0;32m
 NC := \033[0m
 
-help: ## Liste les commandes disponibles
-	@echo "$(GREEN)Cibles disponibles:$(NC)"
+help: ## List available targets
+	@echo "$(GREEN)Available targets:$(NC)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[0;32m%-16s\033[0m %s\n", $$1, $$2}'
 
-venv: ## (Optionnel) Crée un venv .venv
+venv: ## (Optional) Create a .venv virtualenv
 	$(PY) -m venv .venv
 
-install: ## Installe les dépendances (venv activé)
+install: ## Install dependencies (venv activated)
 	$(PY) -m pip install -U pip
 	$(PY) -m pip install -r requirements.txt
 
-run: ## Lance l'API en mode reload
+run: ## Start the API with reload
 	$(PY) -m uvicorn app.main:app --reload
 
-test: ## Tous les tests sauf SQL
+test: ## All tests except SQL
 	$(PY) -m pytest -q -m $(DEFAULT_MARKER)
 
-test-all: ## Tous les tests (unit + integration + SQL)
+test-all: ## Full test suite (unit + integration + SQL)
 	$(PY) -m pytest -q
 
-db-up: ## Démarre PostgreSQL (Docker)
+db-up: ## Start PostgreSQL (Docker)
 	docker compose up -d db
 
-db-down: ## Stoppe PostgreSQL
+db-down: ## Stop PostgreSQL
 	docker compose down
 
-migrate: ## Applique les migrations Alembic
+migrate: ## Apply Alembic migrations
 	$(PY) -m alembic upgrade head
 
-test-sql: ## Démarre la DB, applique les migrations et exécute tous les tests SQL
+test-sql: ## Start DB, run migrations, execute SQL tests
 	make db-up
 	make migrate
 	make test-all
 	make db-down
 
-lint: ## Ruff + mypy (venv activé)
+lint: ## Ruff + mypy (venv activated)
 	$(PY) -m ruff check app tests
 	$(PY) -m mypy app
 
@@ -54,6 +54,6 @@ last_check:
 	make lint
 	make test-sql
 
-clean: ## Supprime les caches Python / pytest / mypy
+clean: ## Remove Python / pytest / mypy caches
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rf .pytest_cache .mypy_cache

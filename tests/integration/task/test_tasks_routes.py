@@ -118,9 +118,7 @@ def test_patch_task_partial_update_ok(set_current_user):
     """PATCH should update only provided fields and return 200."""
     set_current_user()
     client = TestClient(app)
-    r_create = client.post(
-        "/v1/tasks", json={"label": "Before"}
-    )
+    r_create = client.post("/v1/tasks", json={"label": "Before"})
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
@@ -165,9 +163,7 @@ def test_delete_task_ok_then_not_found_ko(set_current_user):
     """DELETE should return 204 once, then 404 if called again (semantics A)."""
     set_current_user()
     client = TestClient(app)
-    r_create = client.post(
-        "/v1/tasks", json={"label": "ToDelete"}
-    )
+    r_create = client.post("/v1/tasks", json={"label": "ToDelete"})
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
@@ -211,9 +207,7 @@ def test_task_access_denied_for_other_user(set_current_user):
     resp_get = client.get(f"/v1/tasks/{task_id}")
     assert resp_get.status_code == 404
 
-    resp_patch = client.patch(
-        f"/v1/tasks/{task_id}", json={"label": "Hack attempt"}
-    )
+    resp_patch = client.patch(f"/v1/tasks/{task_id}", json={"label": "Hack attempt"})
     assert resp_patch.status_code == 404
 
     resp_delete = client.delete(f"/v1/tasks/{task_id}")

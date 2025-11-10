@@ -9,8 +9,7 @@ router = APIRouter(prefix="/v1/users", tags=["users"])
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    payload: UserCreate, 
-    uc: CreateUser = Depends(get_create_user_uc)
+    payload: UserCreate, uc: CreateUser = Depends(get_create_user_uc)
 ):
     try:
         user = await uc.execute(

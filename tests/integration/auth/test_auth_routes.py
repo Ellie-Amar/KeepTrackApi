@@ -33,9 +33,7 @@ def override_auth_dependencies():
 
 
 def _create_user(client: TestClient, email: str, password: str) -> None:
-    response = client.post(
-        "/v1/users", json={"email": email, "password": password}
-    )
+    response = client.post("/v1/users", json={"email": email, "password": password})
     assert response.status_code == 201, response.text
 
 

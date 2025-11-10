@@ -17,9 +17,7 @@ async def clean_tasks_table():
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_create_then_list_ok(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_create_then_list_ok(client: AsyncClient, auth_factory):
     """Create a task then list all tasks; the created one must appear."""
     ctx = await auth_factory()
     payload = {
@@ -43,9 +41,7 @@ async def test_sql_create_then_list_ok(
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_create_empty_label_task_ko(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_create_empty_label_task_ko(client: AsyncClient, auth_factory):
     """Creating a task with empty label should fail validation (422)."""
     ctx = await auth_factory()
     payload = {
@@ -80,9 +76,7 @@ async def test_sql_get_task_by_id_ok(client: AsyncClient, auth_factory):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_get_task_by_id_not_found_ko(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_get_task_by_id_not_found_ko(client: AsyncClient, auth_factory):
     """GET by id should return 404 for an unknown id."""
     ctx = await auth_factory()
     r = await client.get(f"/v1/tasks/{uuid4()}", headers=ctx.headers)
@@ -92,9 +86,7 @@ async def test_sql_get_task_by_id_not_found_ko(
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_patch_task_partial_update_ok(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_patch_task_partial_update_ok(client: AsyncClient, auth_factory):
     """PATCH should update only provided fields and return 200."""
     ctx = await auth_factory()
     r_create = await client.post(
@@ -119,9 +111,7 @@ async def test_sql_patch_task_partial_update_ok(
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_patch_task_not_found_ko(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_patch_task_not_found_ko(client: AsyncClient, auth_factory):
     """PATCH unknown id should return 404."""
     ctx = await auth_factory()
     r = await client.patch(
@@ -158,9 +148,7 @@ async def test_sql_patch_task_validation_label_empty_ko(
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_delete_task_then_not_found_ko(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_delete_task_then_not_found_ko(client: AsyncClient, auth_factory):
     """DELETE should return 204 once, then 404 if called again."""
     ctx = await auth_factory()
     r_create = await client.post(
@@ -171,14 +159,10 @@ async def test_sql_delete_task_then_not_found_ko(
     assert r_create.status_code == 201, r_create.text
     created = r_create.json()
 
-    r_del1 = await client.delete(
-        f"/v1/tasks/{created['id']}", headers=ctx.headers
-    )
+    r_del1 = await client.delete(f"/v1/tasks/{created['id']}", headers=ctx.headers)
     assert r_del1.status_code == 204, r_del1.text
 
-    r_del2 = await client.delete(
-        f"/v1/tasks/{created['id']}", headers=ctx.headers
-    )
+    r_del2 = await client.delete(f"/v1/tasks/{created['id']}", headers=ctx.headers)
     assert r_del2.status_code == 404, r_del2.text
     assert r_del2.json()["detail"] == "Task not found"
 
@@ -212,9 +196,7 @@ async def test_sql_create_task_without_token_unauthorized(client: AsyncClient):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_list_only_returns_user_tasks(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_list_only_returns_user_tasks(client: AsyncClient, auth_factory):
     """A user should not see tasks owned by others."""
     ctx_owner = await auth_factory(email=f"owner-{uuid4()}@example.com")
     ctx_other = await auth_factory(email=f"other-{uuid4()}@example.com")
@@ -240,9 +222,7 @@ async def test_sql_list_only_returns_user_tasks(
 
 @pytest.mark.sql
 @pytest.mark.asyncio
-async def test_sql_access_denied_for_other_user(
-    client: AsyncClient, auth_factory
-):
+async def test_sql_access_denied_for_other_user(client: AsyncClient, auth_factory):
     """Another user must get 404 when accessing someone else's task."""
     ctx_owner = await auth_factory(email=f"owner-access-{uuid4()}@example.com")
     ctx_other = await auth_factory(email=f"other-access-{uuid4()}@example.com")

@@ -23,7 +23,11 @@ def test_create_user_ok():
     client = TestClient(app)
     response = client.post(
         "/v1/users",
-        json={"email": "local@test.com", "password": "StrongPass123", "displayName": "Local"},
+        json={
+            "email": "local@test.com",
+            "password": "StrongPass123",
+            "displayName": "Local",
+        },
     )
 
     assert response.status_code == 201, response.text

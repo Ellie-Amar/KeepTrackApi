@@ -53,7 +53,7 @@ class JwtTokenService(ITokenService):
                 algorithms=[self._alg],
                 options={"require": ["exp", "iat", "iss"]},
                 issuer=self._issuer,
-                leeway=0, # lag tolerance
+                leeway=0,  # lag tolerance
             )
             if payload.get("type") != "access":
                 raise ValueError("Invalid token type")

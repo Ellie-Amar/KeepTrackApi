@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
@@ -17,7 +16,6 @@ from tests.support.stubs import StubTokenService
 @pytest.mark.asyncio
 async def test_get_current_user_ok():
     user = User.new(email="u@test.com", password_hash="hash")
-    token_service = StubTokenService(payload={"sub": str(user.id)})
     repo = UserRepositoryInMemory()
     await repo.add(user)
     user_id = list(repo.users)[0].id  # ensure we use the stored UUID
