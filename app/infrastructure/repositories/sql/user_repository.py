@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.ports.user_repository import IUserRepository
 from app.domain.entities.user import User
-from app.infrastructure.db.models import UserORM
+from app.infrastructure.db.models.user import UserORM
 
 
 class UserRepositorySQL(IUserRepository):

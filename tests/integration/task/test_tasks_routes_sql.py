@@ -15,6 +15,28 @@ async def clean_tasks_table():
     await clear_tasks()
 
 
+async def _create_task(client: AsyncClient, headers, label: str = "Task") -> dict:
+    response = await client.post(
+        "/v1/tasks",
+        json={"label": label},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+async def _create_validation(
+    client: AsyncClient, task_id: str, headers, note: str = "note"
+) -> dict:
+    response = await client.post(
+        f"/v1/tasks/{task_id}/validations",
+        json={"note": note},
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 @pytest.mark.sql
 @pytest.mark.asyncio
 async def test_sql_create_then_list_ok(client: AsyncClient, auth_factory):
@@ -37,6 +59,39 @@ async def test_sql_create_then_list_ok(client: AsyncClient, auth_factory):
     assert r2.status_code == 200, r2.text
     items = r2.json()
     assert any(it["id"] == created["id"] for it in items)
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_list_tasks_includes_validations_ok(
+    client: AsyncClient, auth_factory
+):
+    ctx = await auth_factory(display_name="ListUser")
+    task = await _create_task(client, ctx.headers)
+    await _create_validation(client, task["id"], ctx.headers, note="sql note")
+
+    resp = await client.get("/v1/tasks", headers=ctx.headers)
+
+    assert resp.status_code == 200, resp.text
+    items = resp.json()
+    assert len(items[0]["validations"]) == 1
+    assert items[0]["validations"][0]["note"] == "sql note"
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_list_tasks_validations_other_user_ko(
+    client: AsyncClient, auth_factory
+):
+    owner = await auth_factory(email=f"owner-{uuid4()}@example.com")
+    other = await auth_factory(email=f"other-{uuid4()}@example.com")
+    task = await _create_task(client, owner.headers)
+    await _create_validation(client, task["id"], owner.headers, note="private")
+
+    resp = await client.get("/v1/tasks", headers=other.headers)
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == []
 
 
 @pytest.mark.sql
@@ -72,6 +127,36 @@ async def test_sql_get_task_by_id_ok(client: AsyncClient, auth_factory):
     assert body["id"] == created["id"]
     assert body["label"] == "SQL Read"
     assert "createdAt" in body and "updatedAt" in body
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_get_task_includes_validations_ok(client: AsyncClient, auth_factory):
+    ctx = await auth_factory(display_name="Reader")
+    task = await _create_task(client, ctx.headers)
+    await _create_validation(client, task["id"], ctx.headers, note="history")
+
+    resp = await client.get(f"/v1/tasks/{task['id']}", headers=ctx.headers)
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert len(body["validations"]) == 1
+    assert body["validations"][0]["note"] == "history"
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_get_task_validations_other_user_ko(
+    client: AsyncClient, auth_factory
+):
+    owner = await auth_factory(email=f"owner-{uuid4()}@example.com")
+    other = await auth_factory(email=f"other-{uuid4()}@example.com")
+    task = await _create_task(client, owner.headers)
+    await _create_validation(client, task["id"], owner.headers, note="private")
+
+    resp = await client.get(f"/v1/tasks/{task['id']}", headers=other.headers)
+
+    assert resp.status_code == 404, resp.text
 
 
 @pytest.mark.sql

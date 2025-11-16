@@ -5,10 +5,14 @@ import pytest
 from fastapi import HTTPException
 
 from app.domain.entities.user import User
-from app.interfaces.security import get_current_user
+from app.domain.entities.task import Task
+from app.infrastructure.repositories.in_memory.task_repository import (
+    TaskRepositoryInMemory,
+)
 from app.infrastructure.repositories.in_memory.user_repository import (
     UserRepositoryInMemory,
 )
+from app.interfaces.security import get_current_user, require_task_with_validations
 from tests.support.stubs import StubTokenService
 
 
@@ -78,3 +82,59 @@ async def test_get_current_user_user_not_found_ko():
 
     assert exc.value.status_code == 401
     assert exc.value.detail == "User not found"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_require_task_with_validations_owner_ok():
+    user = User.new(email="owner@test.com", password_hash="hash")
+    task = Task.new(owner_id=user.id, label="Task")
+    repo = TaskRepositoryInMemory()
+    await repo.add(task)
+
+    result = await require_task_with_validations(
+        task_id=task.id,
+        repo=repo,
+        current_user=user,
+    )
+
+    assert result.task == task
+    assert result.validations == []
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_require_task_with_validations_participant_ok():
+    owner = User.new(email="owner@test.com", password_hash="hash")
+    participant = User.new(email="participant@test.com", password_hash="hash")
+    task = Task.new(owner_id=owner.id, label="Task")
+    repo = TaskRepositoryInMemory()
+    await repo.add(task)
+    repo._tasks_users.append((task.id, participant.id))
+
+    result = await require_task_with_validations(
+        task_id=task.id,
+        repo=repo,
+        current_user=participant,
+    )
+
+    assert result.task == task
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_require_task_with_validations_forbidden_ko():
+    owner = User.new(email="owner@test.com", password_hash="hash")
+    stranger = User.new(email="stranger@test.com", password_hash="hash")
+    task = Task.new(owner_id=owner.id, label="Task")
+    repo = TaskRepositoryInMemory()
+    await repo.add(task)
+
+    with pytest.raises(HTTPException) as exc:
+        await require_task_with_validations(
+            task_id=task.id,
+            repo=repo,
+            current_user=stranger,
+        )
+
+    assert exc.value.status_code == 404

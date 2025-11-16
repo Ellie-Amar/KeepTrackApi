@@ -3,6 +3,9 @@ from datetime import timedelta
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.ports.task_validation_repository import (
+    ITaskValidationRepository,
+)
 from app.application.ports.user_repository import IUserRepository
 from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
 from app.application.usecases.user.create_user_usecase import CreateUser
@@ -13,10 +16,28 @@ from app.infrastructure.db.dependencies import get_db
 from app.application.ports.task_repository import ITaskRepository
 from app.application.usecases.task.create_task_usecase import CreateTask
 from app.application.usecases.task.list_tasks_usecase import ListTasks
+from app.application.usecases.task.list_tasks_with_validations_usecase import (
+    ListTasksWithValidations,
+)
 from app.application.usecases.task.get_task_usecase import GetTask
 from app.application.usecases.task.update_task_usecase import UpdateTask
+from app.application.usecases.task_validation.create_task_validation_usecase import (
+    CreateTaskValidation,
+)
+from app.application.usecases.task_validation.delete_task_validation_usecase import (
+    DeleteTaskValidation,
+)
+from app.application.usecases.task_validation.list_task_validations_usecase import (
+    ListTaskValidations,
+)
+from app.application.usecases.task_validation.update_task_validation_usecase import (
+    UpdateTaskValidation,
+)
 from app.application.usecases.task.delete_task_usecase import DeleteTask
 from app.infrastructure.repositories.sql.task_repository import TaskRepositorySQL
+from app.infrastructure.repositories.sql.task_validation_repository import (
+    TaskValidationRepositorySQL,
+)
 from app.infrastructure.repositories.sql.user_repository import UserRepositorySQL
 
 # --- Auth ---
@@ -50,6 +71,12 @@ def get_list_tasks_uc(repo: ITaskRepository = Depends(get_task_repo)) -> ListTas
     return ListTasks(repo)
 
 
+def get_list_tasks_with_validations_uc(
+    task_repo: ITaskRepository = Depends(get_task_repo),
+) -> ListTasksWithValidations:
+    return ListTasksWithValidations(task_repo)
+
+
 def get_get_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> GetTask:
     """Provide the GetTask use case."""
     return GetTask(repo)
@@ -63,6 +90,40 @@ def get_update_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> Update
 def get_delete_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> DeleteTask:
     """Provide the DeleteTask use case."""
     return DeleteTask(repo)
+
+
+# --- Task Validation
+
+
+def get_task_validation_repo(
+    session: AsyncSession = Depends(get_db),
+) -> ITaskValidationRepository:
+    """Provide repository for task validations."""
+    return TaskValidationRepositorySQL(session)
+
+
+def get_create_task_validation_uc(
+    repo: ITaskValidationRepository = Depends(get_task_validation_repo),
+) -> CreateTaskValidation:
+    return CreateTaskValidation(repo)
+
+
+def get_update_task_validation_uc(
+    repo: ITaskValidationRepository = Depends(get_task_validation_repo),
+) -> UpdateTaskValidation:
+    return UpdateTaskValidation(repo)
+
+
+def get_delete_task_validation_uc(
+    repo: ITaskValidationRepository = Depends(get_task_validation_repo),
+) -> DeleteTaskValidation:
+    return DeleteTaskValidation(repo)
+
+
+def get_list_task_validations_uc(
+    repo: ITaskValidationRepository = Depends(get_task_validation_repo),
+) -> ListTaskValidations:
+    return ListTaskValidations(repo)
 
 
 # --- User ---

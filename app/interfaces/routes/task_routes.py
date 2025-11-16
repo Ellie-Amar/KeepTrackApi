@@ -3,14 +3,23 @@ from fastapi import APIRouter, Depends, status, HTTPException
 
 from app.application.commands.delete_task_command import DeleteTaskCommand
 from app.application.commands.list_tasks_command import ListTasksCommand
-from app.domain.entities.task import Task
+from app.domain.entities.task import Task, TaskWithValidations
 from app.domain.entities.user import User
-from app.interfaces.security import get_current_user, require_task_access
-from app.interfaces.view_models.task_view_model import TaskCreate, TaskRead
-from app.interfaces.view_models.task_view_model import TaskUpdate
+from app.interfaces.security import (
+    get_current_user,
+    require_task_access,
+    require_task_with_validations,
+)
+from app.interfaces.view_models.task_view_model import (
+    TaskCreate,
+    TaskRead,
+    TaskUpdate,
+)
 
 from app.application.usecases.task.create_task_usecase import CreateTask
-from app.application.usecases.task.list_tasks_usecase import ListTasks
+from app.application.usecases.task.list_tasks_with_validations_usecase import (
+    ListTasksWithValidations,
+)
 from app.application.usecases.task.update_task_usecase import UpdateTask
 from app.application.usecases.task.delete_task_usecase import DeleteTask
 
@@ -19,7 +28,7 @@ from app.application.commands.update_task_command import UpdateTaskCommand
 
 from app.interfaces.dependencies import (
     get_create_task_uc,
-    get_list_tasks_uc,
+    get_list_tasks_with_validations_uc,
     get_update_task_uc,
     get_delete_task_uc,
 )
@@ -43,22 +52,23 @@ async def create_task(
 
 @router.get("", response_model=list[TaskRead])
 async def list_tasks(
-    usecase_get: ListTasks = Depends(get_list_tasks_uc),
+    usecase_get: ListTasksWithValidations = Depends(get_list_tasks_with_validations_uc),
     current_user=Depends(get_current_user),
 ):
-    """List tasks visible to the authenticated user."""
-    tasks = await usecase_get.execute(ListTasksCommand(user_id=current_user.id))
-    return tasks
+    """List tasks visible to the authenticated user, including validation history."""
+    results = await usecase_get.execute(ListTasksCommand(user_id=current_user.id))
+    return [TaskRead.from_task_with_validations(item, current_user) for item in results]
 
 
 @router.get("/{task_id}", response_model=TaskRead)
 async def get_task(
-    task: Task = Depends(require_task_access),
+    item: TaskWithValidations = Depends(require_task_with_validations),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a task by its uuid"""
-    if not task:
+    if not item:
         raise HTTPException(status_code=404, detail="Task not found")
-    return task
+    return TaskRead.from_task_with_validations(item, current_user)
 
 
 @router.patch("/{task_id}", response_model=TaskRead)

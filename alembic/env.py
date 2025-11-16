@@ -11,9 +11,10 @@ load_dotenv()
 
 
 from app.infrastructure.db.session import Base
-from app.infrastructure.db.models import (
-    TaskORM,
-)  # it's recommended that to ensure models are imported
+from app.infrastructure.db.models.task import TaskORM
+from app.infrastructure.db.models.task_validation import TaskValidationORM
+from app.infrastructure.db.models.user import UserORM
+from app.infrastructure.db.models.tasks_users import tasks_users
 
 
 # interpret the config file for Python logging.

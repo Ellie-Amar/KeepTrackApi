@@ -5,11 +5,15 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from app.interfaces.dependencies import get_task_repo
+from app.domain.entities.user import User
+from app.interfaces.dependencies import get_task_repo, get_task_validation_repo
 from app.interfaces.security import get_current_user
 from app.main import app
 from app.infrastructure.repositories.in_memory.task_repository import (
     TaskRepositoryInMemory,
+)
+from app.infrastructure.repositories.in_memory.task_validation_repository import (
+    TaskValidationRepositoryInMemory,
 )
 from tests.integration.helpers.auth import make_set_current_user
 
@@ -17,10 +21,13 @@ from tests.integration.helpers.auth import make_set_current_user
 @pytest.fixture(autouse=True)
 def override_repo():
     """Override the task repository with an in-memory implementation for each test."""
-    repo = TaskRepositoryInMemory()
+    validation_repo = TaskValidationRepositoryInMemory()
+    repo = TaskRepositoryInMemory(validation_repo=validation_repo)
     app.dependency_overrides[get_task_repo] = lambda: repo
+    app.dependency_overrides[get_task_validation_repo] = lambda: validation_repo
     yield
     app.dependency_overrides.pop(get_task_repo, None)
+    app.dependency_overrides.pop(get_task_validation_repo, None)
 
 
 @pytest.fixture
@@ -28,6 +35,29 @@ def set_current_user():
     helper = make_set_current_user(app)
     yield helper
     app.dependency_overrides.pop(get_current_user, None)
+
+
+def _create_task(client: TestClient, label: str = "Task") -> str:
+    response = client.post("/v1/tasks", json={"label": label})
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
+
+
+def _create_validation(client: TestClient, task_id: str, note: str = "note") -> dict:
+    response = client.post(
+        f"/v1/tasks/{task_id}/validations",
+        json={"note": note},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def _user_with_name(name: str | None) -> User:
+    return User.new(
+        email=f"user-{uuid4()}@example.com",
+        password_hash="hash",
+        display_name=name,
+    )
 
 
 @pytest.mark.integration
@@ -68,6 +98,35 @@ def test_create_then_list_tasks_ok(set_current_user):
 
 
 @pytest.mark.integration
+def test_list_tasks_includes_validations_ok(set_current_user):
+    set_current_user(user=_user_with_name("Owner"))
+    client = TestClient(app)
+    task_id = _create_task(client)
+    _create_validation(client, task_id, note="done")
+
+    response = client.get("/v1/tasks")
+
+    assert response.status_code == 200, response.text
+    items = response.json()
+    assert len(items[0]["validations"]) == 1
+    assert items[0]["validations"][0]["note"] == "done"
+
+
+@pytest.mark.integration
+def test_list_tasks_validations_hidden_for_other_user_ko(set_current_user):
+    set_current_user(email="owner@example.test")
+    client = TestClient(app)
+    task_id = _create_task(client)
+    _create_validation(client, task_id, note="owner only")
+
+    set_current_user(email="other@example.test")
+    response = client.get("/v1/tasks")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.integration
 def test_create_task_validation_ko(set_current_user):
     """Should return 422 when label is empty."""
     set_current_user()
@@ -101,6 +160,34 @@ def test_get_task_by_id_ok(set_current_user):
     assert body["label"] == "Read book"
     # CamelCase
     assert "createdAt" in body and "updatedAt" in body
+
+
+@pytest.mark.integration
+def test_get_task_includes_validations_ok(set_current_user):
+    set_current_user(user=_user_with_name("Owner"))
+    client = TestClient(app)
+    task_id = _create_task(client)
+    _create_validation(client, task_id, note="first")
+
+    response = client.get(f"/v1/tasks/{task_id}")
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["validations"]) == 1
+    assert body["validations"][0]["note"] == "first"
+
+
+@pytest.mark.integration
+def test_get_task_validations_other_user_ko(set_current_user):
+    set_current_user(email="owner@example.test")
+    client = TestClient(app)
+    task_id = _create_task(client)
+    _create_validation(client, task_id, note="first")
+
+    set_current_user(email="other@example.test")
+    response = client.get(f"/v1/tasks/{task_id}")
+
+    assert response.status_code == 404
 
 
 @pytest.mark.integration

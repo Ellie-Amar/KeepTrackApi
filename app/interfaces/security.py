@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.application.ports.task_repository import ITaskRepository
-from app.domain.entities.task import Task
+from app.domain.entities.task import Task, TaskWithValidations
 from app.domain.entities.user import User
 from app.interfaces.dependencies import get_task_repo, get_token_service, get_user_repo
 from app.application.ports.token_service import ITokenService
@@ -66,5 +66,26 @@ async def require_task_access(
     user_task_list = await repo.list_by_user(current_user.id)
     if any(t.id == task_id for t in user_task_list):
         return task
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+
+async def require_task_with_validations(
+    task_id: UUID,
+    repo: ITaskRepository = Depends(get_task_repo),
+    current_user=Depends(get_current_user),
+) -> TaskWithValidations:
+    entry = await repo.get_with_validations(task_id)
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+    task = entry.task
+    if task.owner_id == current_user.id:
+        return entry
+
+    user_task_list = await repo.list_by_user(current_user.id)
+    if any(t.id == task_id for t in user_task_list):
+        return entry
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")

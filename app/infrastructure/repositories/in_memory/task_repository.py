@@ -1,16 +1,27 @@
-from typing import List, Tuple
+from collections import defaultdict
+from typing import List, Tuple, TYPE_CHECKING
 from uuid import UUID
 
 from app.application.ports.task_repository import ITaskRepository
-from app.domain.entities.task import Task
+from app.domain.entities.task import Task, TaskWithValidations
+from app.domain.entities.task_validation import TaskValidation
+
+if TYPE_CHECKING:
+    from app.infrastructure.repositories.in_memory.task_validation_repository import (
+        TaskValidationRepositoryInMemory,
+    )
 
 
 class TaskRepositoryInMemory(ITaskRepository):
     """In-memory task repository for testing."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        validation_repo: "TaskValidationRepositoryInMemory | None" = None,
+    ) -> None:
         self._tasks: List[Task] = []
         self._tasks_users: List[Tuple[UUID, UUID]] = []
+        self._validation_repo = validation_repo
 
     async def add(self, task: Task) -> None:
         """Add a task and ensure owner ∈ participants."""
@@ -52,3 +63,33 @@ class TaskRepositoryInMemory(ITaskRepository):
         """Return all tasks where the user is a participant."""
         task_ids = [tid for tid, uid in self._tasks_users if uid == user_id]
         return [t for t in self._tasks if t.id in task_ids]
+
+    async def list_with_validations_by_user(
+        self, user_id: UUID
+    ) -> List[TaskWithValidations]:
+        """Return tasks with associated validations if a repo is attached."""
+        tasks = await self.list_by_user(user_id)
+        validation_map: defaultdict[UUID, list[TaskValidation]] = defaultdict(list)
+        if self._validation_repo is not None:
+            validations = await self._validation_repo.list_by_tasks(
+                [task.id for task in tasks]
+            )
+            for validation in validations:
+                validation_map[validation.task_id].append(validation)
+
+        return [
+            TaskWithValidations(
+                task=task, validations=list(validation_map.get(task.id, []))
+            )
+            for task in tasks
+        ]
+
+    async def get_with_validations(self, task_id: UUID) -> TaskWithValidations | None:
+        """Return a single task with associated validations if available."""
+        task = await self.get(task_id)
+        if task is None:
+            return None
+        validations: list[TaskValidation] = []
+        if self._validation_repo is not None:
+            validations = await self._validation_repo.list_by_task(task_id)
+        return TaskWithValidations(task=task, validations=validations)

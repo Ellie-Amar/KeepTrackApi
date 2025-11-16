@@ -4,12 +4,16 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, delete as sqla_delete, insert
+from sqlalchemy.orm import selectinload
 
 from app.application.ports.task_repository import ITaskRepository
-from app.domain.entities.task import Task
+from app.domain.entities.task import Task, TaskWithValidations
+from app.domain.entities.task_validation import TaskValidation
 from app.domain.errors import ValidationError
-from app.infrastructure.db.models import TaskORM
-from app.infrastructure.db.models import UserORM, tasks_users
+from app.infrastructure.db.models.task import TaskORM
+from app.infrastructure.db.models.task_validation import TaskValidationORM
+from app.infrastructure.db.models.user import UserORM
+from app.infrastructure.db.models.tasks_users import tasks_users
 
 
 class TaskRepositorySQL(ITaskRepository):
@@ -90,6 +94,96 @@ class TaskRepositorySQL(ITaskRepository):
             )
             for row in rows
         ]
+
+    async def list_with_validations_by_user(
+        self, user_id: UUID
+    ) -> List[TaskWithValidations]:
+        stmt = (
+            select(TaskORM)
+            .options(
+                selectinload(TaskORM.validations).selectinload(TaskValidationORM.user)
+            )
+            .join(tasks_users, tasks_users.c.task_id == TaskORM.id)
+            .where(tasks_users.c.user_id == user_id)
+        )
+        rows = (await self.session.execute(stmt)).scalars().unique().all()
+        return [
+            TaskWithValidations(
+                task=Task(
+                    id=row.id,
+                    owner_id=row.owner_id,
+                    label=row.label,
+                    note=row.note,
+                    category=row.category,
+                    status=row.status,
+                    order=row.order,
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
+                ),
+                validations=sorted(
+                    [
+                        TaskValidation(
+                            id=validation.id,
+                            task_id=validation.task_id,
+                            user_id=validation.user_id,
+                            note=validation.note,
+                            created_at=validation.created_at,
+                            updated_at=validation.updated_at,
+                            user_display_name=getattr(
+                                getattr(validation, "user", None), "display_name", None
+                            ),
+                        )
+                        for validation in row.validations
+                    ],
+                    key=lambda item: item.created_at,
+                    reverse=True,
+                ),
+            )
+            for row in rows
+        ]
+
+    async def get_with_validations(self, task_id: UUID) -> TaskWithValidations | None:
+        stmt = (
+            select(TaskORM)
+            .options(
+                selectinload(TaskORM.validations).selectinload(TaskValidationORM.user)
+            )
+            .where(TaskORM.id == task_id)
+        )
+        row = (await self.session.execute(stmt)).scalar_one_or_none()
+        if row is None:
+            return None
+        return TaskWithValidations(
+            task=Task(
+                id=row.id,
+                owner_id=row.owner_id,
+                label=row.label,
+                note=row.note,
+                category=row.category,
+                status=row.status,
+                order=row.order,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            ),
+            validations=sorted(
+                [
+                    TaskValidation(
+                        id=validation.id,
+                        task_id=validation.task_id,
+                        user_id=validation.user_id,
+                        note=validation.note,
+                        created_at=validation.created_at,
+                        updated_at=validation.updated_at,
+                        user_display_name=getattr(
+                            getattr(validation, "user", None), "display_name", None
+                        ),
+                    )
+                    for validation in row.validations
+                ],
+                key=lambda item: item.created_at,
+                reverse=True,
+            ),
+        )
 
     async def get(self, task_id: UUID) -> Task | None:
         """Return a domain Task or None if not found."""

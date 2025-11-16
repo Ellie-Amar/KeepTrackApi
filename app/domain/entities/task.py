@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 from app.domain.entities.base import BaseEntity
 from app.domain.errors import ValidationError
+from app.domain.entities.task_validation import TaskValidation
 
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class Task(BaseEntity):
     order: int = 0
 
     def __post_init__(self):
-        super().__post_init__()  # validates timestamps consistency and UTC from BaseEntity
+        super().__post_init__()
 
         lbl = (self.label or "").strip()
         if not lbl:
@@ -31,3 +32,9 @@ class Task(BaseEntity):
 
         # dataclass is frozen, so normalize via object.__setattr__
         object.__setattr__(self, "label", lbl)
+
+
+@dataclass(frozen=True, slots=True)
+class TaskWithValidations:
+    task: Task
+    validations: list[TaskValidation]
