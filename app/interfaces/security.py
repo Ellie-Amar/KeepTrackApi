@@ -70,6 +70,26 @@ async def require_task_access(
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
 
+async def require_task_owner(
+    task_id: UUID,
+    repo: ITaskRepository = Depends(get_task_repo),
+    current_user: User = Depends(get_current_user),
+) -> Task:
+    """Authorize only the task owner, hide existence otherwise."""
+    task = await repo.get(task_id)
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    if task.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
+
+    return task
+
+
 async def require_task_with_validations(
     task_id: UUID,
     repo: ITaskRepository = Depends(get_task_repo),

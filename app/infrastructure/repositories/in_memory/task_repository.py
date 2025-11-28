@@ -64,6 +64,22 @@ class TaskRepositoryInMemory(ITaskRepository):
         task_ids = [tid for tid, uid in self._tasks_users if uid == user_id]
         return [t for t in self._tasks if t.id in task_ids]
 
+    async def list_assignees(self, task_id: UUID) -> List[UUID]:
+        """Return user ids assigned to the task."""
+        return [uid for tid, uid in self._tasks_users if tid == task_id]
+
+    async def add_assignee(self, task_id: UUID, user_id: UUID) -> None:
+        """Link a user to a task."""
+        self._tasks_users.append((task_id, user_id))
+
+    async def remove_assignee(self, task_id: UUID, user_id: UUID) -> None:
+        """Remove a user from a task."""
+        self._tasks_users = [
+            (tid, uid)
+            for tid, uid in self._tasks_users
+            if not (tid == task_id and uid == user_id)
+        ]
+
     async def list_with_validations_by_user(
         self, user_id: UUID
     ) -> List[TaskWithValidations]:

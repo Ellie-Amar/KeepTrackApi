@@ -224,3 +224,30 @@ class TaskRepositorySQL(ITaskRepository):
         """Delete row by id (hard delete)."""
         await self.session.execute(sqla_delete(TaskORM).where(TaskORM.id == task_id))
         await self.session.commit()
+
+    async def list_assignees(self, task_id: UUID) -> List[UUID]:
+        """Return user ids assigned to a task (including owner)."""
+        result = await self.session.execute(
+            select(tasks_users.c.user_id).where(tasks_users.c.task_id == task_id)
+        )
+        return list(result.scalars().all())
+
+    async def add_assignee(self, task_id: UUID, user_id: UUID) -> None:
+        """Link a user to a task."""
+        await self.session.execute(
+            insert(tasks_users).values(task_id=task_id, user_id=user_id)
+        )
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            raise
+
+    async def remove_assignee(self, task_id: UUID, user_id: UUID) -> None:
+        """Remove a user from a task."""
+        await self.session.execute(
+            sqla_delete(tasks_users).where(
+                tasks_users.c.task_id == task_id, tasks_users.c.user_id == user_id
+            )
+        )
+        await self.session.commit()

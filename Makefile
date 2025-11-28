@@ -1,5 +1,6 @@
 # ===== Makefile for the FastAPI / PostgreSQL project =====
 PY ?= python3
+COMPOSE ?= docker compose
 DEFAULT_MARKER ?= "not sql"
 
 .DEFAULT_GOAL := help
@@ -27,10 +28,10 @@ test-all: ## Full test suite (unit + integration + SQL)
 	$(PY) -m pytest -q
 
 db-up: ## Start PostgreSQL (Docker)
-	docker compose up -d db
+	$(COMPOSE) up -d db
 
 db-down: ## Stop PostgreSQL
-	docker compose down
+	$(COMPOSE) down
 
 migrate: ## Apply Alembic migrations
 	$(PY) -m alembic upgrade head

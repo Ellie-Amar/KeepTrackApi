@@ -21,6 +21,11 @@ from app.application.usecases.task.list_tasks_with_validations_usecase import (
 )
 from app.application.usecases.task.get_task_usecase import GetTask
 from app.application.usecases.task.update_task_usecase import UpdateTask
+from app.application.usecases.task.assign_task_users_usecase import AssignTaskUsers
+from app.application.usecases.task.list_task_assignees_usecase import (
+    ListTaskAssignees,
+)
+from app.application.usecases.task.remove_task_user_usecase import RemoveTaskUser
 from app.application.usecases.task_validation.create_task_validation_usecase import (
     CreateTaskValidation,
 )
@@ -55,6 +60,27 @@ def get_token_service():
     )
 
 
+# --- User ---
+
+
+def get_user_repo(session: AsyncSession = Depends(get_db)):
+    return UserRepositorySQL(session)
+
+
+def get_create_user_uc(
+    repo=Depends(get_user_repo), hasher=Depends(get_password_hasher)
+):
+    return CreateUser(repo, hasher)
+
+
+def get_login_user_uc(
+    repo: IUserRepository = Depends(get_user_repo),
+    hasher=Depends(get_password_hasher),
+    token=Depends(get_token_service),
+):
+    return LoginUserUseCase(repo, hasher, token)
+
+
 # --- Task ---
 def get_task_repo(session: AsyncSession = Depends(get_db)) -> ITaskRepository:
     """Provide concrete repository implementation for tasks."""
@@ -85,6 +111,26 @@ def get_get_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> GetTask:
 def get_update_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> UpdateTask:
     """Provide the UpdateTask use case."""
     return UpdateTask(repo)
+
+
+def get_assign_task_users_uc(
+    task_repo: ITaskRepository = Depends(get_task_repo),
+    user_repo: IUserRepository = Depends(get_user_repo),
+) -> AssignTaskUsers:
+    return AssignTaskUsers(task_repo, user_repo)
+
+
+def get_list_task_assignees_uc(
+    task_repo: ITaskRepository = Depends(get_task_repo),
+    user_repo: IUserRepository = Depends(get_user_repo),
+) -> ListTaskAssignees:
+    return ListTaskAssignees(task_repo, user_repo)
+
+
+def get_remove_task_user_uc(
+    task_repo: ITaskRepository = Depends(get_task_repo),
+) -> RemoveTaskUser:
+    return RemoveTaskUser(task_repo)
 
 
 def get_delete_task_uc(repo: ITaskRepository = Depends(get_task_repo)) -> DeleteTask:
@@ -124,24 +170,3 @@ def get_list_task_validations_uc(
     repo: ITaskValidationRepository = Depends(get_task_validation_repo),
 ) -> ListTaskValidations:
     return ListTaskValidations(repo)
-
-
-# --- User ---
-
-
-def get_user_repo(session: AsyncSession = Depends(get_db)):
-    return UserRepositorySQL(session)
-
-
-def get_create_user_uc(
-    repo=Depends(get_user_repo), hasher=Depends(get_password_hasher)
-):
-    return CreateUser(repo, hasher)
-
-
-def get_login_user_uc(
-    repo: IUserRepository = Depends(get_user_repo),
-    hasher=Depends(get_password_hasher),
-    token=Depends(get_token_service),
-):
-    return LoginUserUseCase(repo, hasher, token)
