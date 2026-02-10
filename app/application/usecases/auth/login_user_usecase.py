@@ -6,6 +6,7 @@ from app.application.commands.login_user_command import LoginUserCommand
 from app.application.ports.user_repository import IUserRepository
 from app.application.ports.password_hasher import IPasswordHasher
 from app.application.ports.token_service import ITokenService
+from app.application.dto.auth_tokens import AuthTokens
 
 
 class LoginUserUseCase:
@@ -19,8 +20,8 @@ class LoginUserUseCase:
         self.hasher = hasher
         self.token_service = token_service
 
-    async def execute(self, cmd: LoginUserCommand) -> str:
-        """Authenticate user and return JWT token."""
+    async def execute(self, cmd: LoginUserCommand) -> AuthTokens:
+        """Authenticate user and return JWT tokens."""
         user = await self.user_repo.get_by_email(cmd.email)
         if user is None or not self.hasher.verify(cmd.password, user.password_hash):
             raise HTTPException(
@@ -29,7 +30,13 @@ class LoginUserUseCase:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        return self.token_service.issue_access_token(
-            user_id=user.id,
-            email=user.email,
+        return AuthTokens(
+            access_token=self.token_service.issue_access_token(
+                user_id=user.id,
+                email=user.email,
+            ),
+            refresh_token=self.token_service.issue_refresh_token(
+                user_id=user.id,
+                email=user.email,
+            ),
         )

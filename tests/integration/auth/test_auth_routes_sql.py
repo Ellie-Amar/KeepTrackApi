@@ -36,6 +36,7 @@ async def test_sql_login_returns_token_ok(client: AsyncClient):
     assert response.status_code == 200, response.text
     body = response.json()
     assert "accessToken" in body
+    assert "refreshToken" in body
     assert body["tokenType"] == "bearer"
 
 
@@ -49,6 +50,44 @@ async def test_sql_login_wrong_password_ko(client: AsyncClient):
         "/v1/auth/token",
         data={"username": email, "password": "bad-password"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_refresh_returns_token_ok(client: AsyncClient):
+    email = "refresh-ok@example.com"
+    password = "StrongPass123!"
+    await _create_user(client, email, password)
+
+    login_response = await client.post(
+        "/v1/auth/token",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login_response.status_code == 200, login_response.text
+    login_body = login_response.json()
+
+    response = await client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": login_body["refreshToken"]},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "accessToken" in body
+    assert "refreshToken" in body
+    assert body["tokenType"] == "bearer"
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
+async def test_sql_refresh_invalid_token_ko(client: AsyncClient):
+    response = await client.post(
+        "/v1/auth/refresh",
+        json={"refreshToken": "bad-token"},
     )
 
     assert response.status_code == 401

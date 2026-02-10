@@ -17,7 +17,17 @@ class StubTokenService:
     def issue_access_token(self, *, user_id, email) -> str:  # type: ignore[override]
         return f"token::{user_id}"
 
+    def issue_refresh_token(self, *, user_id, email) -> str:  # type: ignore[override]
+        return f"refresh::{user_id}"
+
     def decode_access_token(self, token: str) -> dict:
+        if self.error is not None:
+            raise self.error
+        if self.payload is None:
+            raise ValueError("No payload configured for StubTokenService")
+        return self.payload
+
+    def decode_refresh_token(self, token: str) -> dict:
         if self.error is not None:
             raise self.error
         if self.payload is None:

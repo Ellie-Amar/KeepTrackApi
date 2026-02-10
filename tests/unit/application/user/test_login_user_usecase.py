@@ -27,11 +27,12 @@ async def test_login_user_ok():
     )
     await repo.add(stored)
 
-    token = await uc.execute(
+    tokens = await uc.execute(
         LoginUserCommand(email="user@example.com", password=password)
     )
 
-    assert token.startswith("token::")
+    assert tokens.access_token.startswith("token::")
+    assert tokens.refresh_token.startswith("refresh::")
 
 
 @pytest.mark.unit

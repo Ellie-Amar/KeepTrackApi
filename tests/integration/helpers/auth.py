@@ -15,6 +15,7 @@ from app.interfaces.security import get_current_user
 class AuthContext:
     user: dict
     token: str
+    refresh_token: str
     headers: dict[str, str]
 
 
@@ -52,7 +53,12 @@ async def create_user_and_auth(
     token_body = token_response.json()
 
     headers = {"Authorization": f"Bearer {token_body['accessToken']}"}
-    return AuthContext(user=user_body, token=token_body["accessToken"], headers=headers)
+    return AuthContext(
+        user=user_body,
+        token=token_body["accessToken"],
+        refresh_token=token_body["refreshToken"],
+        headers=headers,
+    )
 
 
 def make_set_current_user(app: FastAPI) -> Callable[..., User]:

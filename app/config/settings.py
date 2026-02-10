@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "uwu-secret"
     jwt_issuer: str = "keeptrack"
     jwt_access_ttl_minutes: int = 60
+    jwt_refresh_ttl_minutes: int = 60 * 24 * 7
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.ports.task_validation_repository import (
     ITaskValidationRepository,
 )
+from app.application.ports.token_service import ITokenService
 from app.application.ports.user_repository import IUserRepository
 from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
 from app.application.usecases.user.create_user_usecase import CreateUser
+from app.application.usecases.auth.refresh_token_usecase import RefreshTokenUseCase
 from app.config.settings import settings
 from app.infrastructure.adapters.argon2_password_hasher import Argon2PasswordHasher
 from app.infrastructure.adapters.jwt_token_service import JwtTokenService
@@ -57,6 +59,7 @@ def get_token_service():
         secret=settings.jwt_secret,
         issuer=settings.jwt_issuer,
         access_ttl=timedelta(minutes=settings.jwt_access_ttl_minutes),
+        refresh_ttl=timedelta(minutes=settings.jwt_refresh_ttl_minutes),
     )
 
 
@@ -79,6 +82,13 @@ def get_login_user_uc(
     token=Depends(get_token_service),
 ):
     return LoginUserUseCase(repo, hasher, token)
+
+
+def get_refresh_token_uc(
+    repo: IUserRepository = Depends(get_user_repo),
+    token: ITokenService = Depends(get_token_service),
+):
+    return RefreshTokenUseCase(token, repo)
 
 
 # --- Task ---
