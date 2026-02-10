@@ -1,5 +1,5 @@
 # ===== Makefile for the FastAPI / PostgreSQL project =====
-PY ?= python3
+PY ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 COMPOSE ?= docker compose
 DEFAULT_MARKER ?= "not sql"
 
