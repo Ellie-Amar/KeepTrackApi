@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.interfaces.dependencies import (
-    get_password_hasher,
-    get_token_service,
-    get_user_repo,
+    get_create_user_uc,
+    get_login_user_uc,
+    get_refresh_token_uc,
 )
+from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
+from app.application.usecases.auth.refresh_token_usecase import RefreshTokenUseCase
+from app.application.usecases.user.create_user_usecase import CreateUser
 from app.infrastructure.repositories.in_memory.user_repository import (
     UserRepositoryInMemory,
 )
 from app.main import app
 from tests.support.stubs import StubHasher, StubTokenService
+
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture(autouse=True)
@@ -21,32 +26,42 @@ def override_auth_dependencies():
     hasher = StubHasher()
     token_service = StubTokenService()
 
-    app.dependency_overrides[get_user_repo] = lambda: repo
-    app.dependency_overrides[get_password_hasher] = lambda: hasher
-    app.dependency_overrides[get_token_service] = lambda: token_service
+    async def _get_create_user_uc():
+        return CreateUser(repo, hasher)
+
+    async def _get_login_user_uc():
+        return LoginUserUseCase(repo, hasher, token_service)
+
+    async def _get_refresh_token_uc():
+        return RefreshTokenUseCase(token_service, repo)
+
+    app.dependency_overrides[get_create_user_uc] = _get_create_user_uc
+    app.dependency_overrides[get_login_user_uc] = _get_login_user_uc
+    app.dependency_overrides[get_refresh_token_uc] = _get_refresh_token_uc
     app.state.test_token_service = token_service
 
     yield
 
-    app.dependency_overrides.pop(get_user_repo, None)
-    app.dependency_overrides.pop(get_password_hasher, None)
-    app.dependency_overrides.pop(get_token_service, None)
+    app.dependency_overrides.pop(get_create_user_uc, None)
+    app.dependency_overrides.pop(get_login_user_uc, None)
+    app.dependency_overrides.pop(get_refresh_token_uc, None)
     app.state.test_token_service = None
 
 
-def _create_user(client: TestClient, email: str, password: str) -> None:
-    response = client.post("/v1/users", json={"email": email, "password": password})
+async def _create_user(client: AsyncClient, email: str, password: str) -> None:
+    response = await client.post(
+        "/v1/users", json={"email": email, "password": password}
+    )
     assert response.status_code == 201, response.text
 
 
 @pytest.mark.integration
-def test_login_returns_token_ok():
-    client = TestClient(app)
+async def test_login_returns_token_ok(client: AsyncClient):
     email = "local-login@test.com"
     password = "StrongPass123!"
-    _create_user(client, email, password)
+    await _create_user(client, email, password)
 
-    response = client.post(
+    response = await client.post(
         "/v1/auth/token",
         data={"username": email, "password": password},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -60,12 +75,11 @@ def test_login_returns_token_ok():
 
 
 @pytest.mark.integration
-def test_login_wrong_password_ko():
-    client = TestClient(app)
+async def test_login_wrong_password_ko(client: AsyncClient):
     email = "local-wrong@test.com"
-    _create_user(client, email, "CorrectPass123!")
+    await _create_user(client, email, "CorrectPass123!")
 
-    response = client.post(
+    response = await client.post(
         "/v1/auth/token",
         data={"username": email, "password": "bad-password"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -75,13 +89,12 @@ def test_login_wrong_password_ko():
 
 
 @pytest.mark.integration
-def test_refresh_returns_new_tokens_ok():
-    client = TestClient(app)
+async def test_refresh_returns_new_tokens_ok(client: AsyncClient):
     email = "refresh-ok@test.com"
     password = "StrongPass123!"
-    _create_user(client, email, password)
+    await _create_user(client, email, password)
 
-    login_response = client.post(
+    login_response = await client.post(
         "/v1/auth/token",
         data={"username": email, "password": password},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -93,7 +106,7 @@ def test_refresh_returns_new_tokens_ok():
     user_id = login_body["accessToken"].split("::")[-1]
     app.state.test_token_service.payload = {"sub": user_id}
 
-    response = client.post(
+    response = await client.post(
         "/v1/auth/refresh",
         json={"refreshToken": login_body["refreshToken"]},
     )
@@ -106,13 +119,12 @@ def test_refresh_returns_new_tokens_ok():
 
 
 @pytest.mark.integration
-def test_refresh_invalid_token_ko():
-    client = TestClient(app)
+async def test_refresh_invalid_token_ko(client: AsyncClient):
     email = "refresh-ko@test.com"
     password = "StrongPass123!"
-    _create_user(client, email, password)
+    await _create_user(client, email, password)
 
-    login_response = client.post(
+    login_response = await client.post(
         "/v1/auth/token",
         data={"username": email, "password": password},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -121,7 +133,7 @@ def test_refresh_invalid_token_ko():
 
     app.state.test_token_service.error = ValueError("bad token")
 
-    response = client.post(
+    response = await client.post(
         "/v1/auth/refresh",
         json={"refreshToken": "invalid"},
     )
@@ -130,10 +142,8 @@ def test_refresh_invalid_token_ko():
 
 
 @pytest.mark.integration
-def test_login_unknown_user_ko():
-    client = TestClient(app)
-
-    response = client.post(
+async def test_login_unknown_user_ko(client: AsyncClient):
+    response = await client.post(
         "/v1/auth/token",
         data={"username": "ghost@test.com", "password": "irrelevant"},
         headers={"Content-Type": "application/x-www-form-urlencoded"},

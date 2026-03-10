@@ -1,27 +1,35 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from app.main import app
-from app.interfaces.dependencies import get_user_repo
+from app.interfaces.dependencies import get_create_user_uc
+from app.application.usecases.user.create_user_usecase import CreateUser
 from app.infrastructure.repositories.in_memory.user_repository import (
     UserRepositoryInMemory,
 )
+from tests.support.stubs import StubHasher
+
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture(autouse=True)
 def override_user_repo():
     repo = UserRepositoryInMemory()
-    app.dependency_overrides[get_user_repo] = lambda: repo
+    hasher = StubHasher()
+
+    async def _get_create_user_uc():
+        return CreateUser(repo, hasher)
+
+    app.dependency_overrides[get_create_user_uc] = _get_create_user_uc
     yield
-    app.dependency_overrides.pop(get_user_repo, None)
+    app.dependency_overrides.pop(get_create_user_uc, None)
 
 
 @pytest.mark.integration
-def test_create_user_ok():
-    client = TestClient(app)
-    response = client.post(
+async def test_create_user_ok(client: AsyncClient):
+    response = await client.post(
         "/v1/users",
         json={
             "email": "local@test.com",
@@ -39,25 +47,21 @@ def test_create_user_ok():
 
 
 @pytest.mark.integration
-def test_create_user_duplicate_email_ko():
-    client = TestClient(app)
-
-    first = client.post(
+async def test_create_user_duplicate_email_ko(client: AsyncClient):
+    first = await client.post(
         "/v1/users", json={"email": "dup@test.com", "password": "StrongPass123"}
     )
     assert first.status_code == 201, first.text
 
-    dup = client.post(
+    dup = await client.post(
         "/v1/users", json={"email": "Dup@Test.com", "password": "StrongPass123"}
     )
     assert dup.status_code == 400, dup.text
 
 
 @pytest.mark.integration
-def test_create_user_weak_password_ko():
-    client = TestClient(app)
-
-    response = client.post(
+async def test_create_user_weak_password_ko(client: AsyncClient):
+    response = await client.post(
         "/v1/users", json={"email": "weak@test.com", "password": "short"}
     )
 
