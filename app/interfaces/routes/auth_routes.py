@@ -1,8 +1,14 @@
 from fastapi import APIRouter, Depends
+from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.application.commands.login_user_command import LoginUserCommand
 from app.application.commands.refresh_token_command import RefreshTokenCommand
+from app.application.errors import (
+    AuthUserNotFoundError,
+    InvalidCredentialsError,
+    InvalidTokenError,
+)
 from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
 from app.application.usecases.auth.refresh_token_usecase import RefreshTokenUseCase
 from app.interfaces.dependencies import get_login_user_uc, get_refresh_token_uc
@@ -20,9 +26,16 @@ async def login_for_access_token(
     uc: LoginUserUseCase = Depends(get_login_user_uc),
 ):
     """Authenticate user and return JWT token."""
-    tokens = await uc.execute(
-        LoginUserCommand(email=form_data.username, password=form_data.password)
-    )
+    try:
+        tokens = await uc.execute(
+            LoginUserCommand(email=form_data.username, password=form_data.password)
+        )
+    except InvalidCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     return TokenResponse(
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
@@ -35,7 +48,14 @@ async def refresh_access_token(
     body: RefreshTokenRequest,
     uc: RefreshTokenUseCase = Depends(get_refresh_token_uc),
 ):
-    tokens = await uc.execute(RefreshTokenCommand(refresh_token=body.refresh_token))
+    try:
+        tokens = await uc.execute(RefreshTokenCommand(refresh_token=body.refresh_token))
+    except (InvalidTokenError, AuthUserNotFoundError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
     return TokenResponse(
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,

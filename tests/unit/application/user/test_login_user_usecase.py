@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
 
 from app.application.commands.login_user_command import LoginUserCommand
+from app.application.errors import InvalidCredentialsError
 from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
 from app.infrastructure.repositories.in_memory.user_repository import (
     UserRepositoryInMemory,
@@ -43,10 +43,10 @@ async def test_login_user_unknown_email_ko():
     tokens = StubTokenService()
     uc = LoginUserUseCase(repo, hasher, tokens)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(InvalidCredentialsError) as exc:
         await uc.execute(LoginUserCommand(email="ghost@example.com", password="pass"))
 
-    assert exc.value.status_code == 401
+    assert str(exc.value) == "Invalid credentials"
 
 
 @pytest.mark.unit
@@ -63,9 +63,9 @@ async def test_login_user_wrong_password_ko():
     )
     await repo.add(stored)
 
-    with pytest.raises(HTTPException) as exc:
+    with pytest.raises(InvalidCredentialsError) as exc:
         await uc.execute(
             LoginUserCommand(email="user@example.com", password="wrong-pass")
         )
 
-    assert exc.value.status_code == 401
+    assert str(exc.value) == "Invalid credentials"

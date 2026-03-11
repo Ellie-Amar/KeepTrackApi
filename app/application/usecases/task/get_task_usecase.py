@@ -7,7 +7,7 @@ from app.domain.entities.task import Task
 
 class GetTask:
     """
-    Fetch a task only if the given user can access it (owner or participant).
+    Fetch a task by id.
     """
 
     def __init__(self, repo: ITaskRepository) -> None:

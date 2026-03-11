@@ -55,6 +55,7 @@ def get_password_hasher() -> Argon2PasswordHasher:
 
 
 def get_token_service():
+    assert settings.jwt_secret is not None
     return JwtTokenService(
         secret=settings.jwt_secret,
         issuer=settings.jwt_issuer,
