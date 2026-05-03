@@ -2,12 +2,18 @@
 PY ?= $(shell [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3)
 COMPOSE ?= docker compose
 DEFAULT_MARKER ?= "not sql"
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_USER ?= postgres
+DB_PASSWORD ?= postgres
+TEST_DB_NAME ?= keeptrack_test
+TEST_DATABASE_URL ?= postgresql+asyncpg://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(TEST_DB_NAME)
 
 .DEFAULT_GOAL := help
 GREEN := \033[0;32m
 NC := \033[0m
 
-.PHONY: help venv install run dev test test-all db-up db-down migrate db-ready test-sql lint format check last_check clean
+.PHONY: help venv install run dev test test-all db-up db-down db-create-test migrate db-ready db-ready-test test-sql lint format check last_check clean
 
 help: ## List available targets
 	@echo "$(GREEN)Available targets:$(NC)"
@@ -41,6 +47,10 @@ db-up: ## Start PostgreSQL (Docker)
 db-down: ## Stop PostgreSQL
 	$(COMPOSE) down
 
+db-create-test: ## Create dedicated test DB if it does not exist
+	@$(COMPOSE) exec -T db psql -U $(DB_USER) -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$(TEST_DB_NAME)'" | grep -q 1 || \
+	$(COMPOSE) exec -T db psql -U $(DB_USER) -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $(TEST_DB_NAME)"
+
 migrate: ## Apply Alembic migrations
 	$(PY) -m alembic upgrade head
 
@@ -48,11 +58,16 @@ db-ready: ## Start DB and apply migrations
 	$(MAKE) db-up
 	$(MAKE) migrate
 
+db-ready-test: ## Start DB, ensure test DB exists, apply migrations to test DB
+	$(MAKE) db-up
+	$(MAKE) db-create-test
+	DATABASE_URL=$(TEST_DATABASE_URL) $(MAKE) migrate
+
 test-sql: ## Start DB, run migrations, execute SQL tests
 	@set -e; \
 	trap '$(MAKE) db-down' INT TERM EXIT; \
-	$(MAKE) db-ready; \
-	$(MAKE) test-all
+	$(MAKE) db-ready-test; \
+	DATABASE_URL=$(TEST_DATABASE_URL) $(MAKE) test-all
 
 lint: ## Ruff + mypy (venv activated)
 	$(PY) -m ruff check app tests
