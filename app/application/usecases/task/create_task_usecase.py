@@ -13,6 +13,8 @@ class CreateTask:
             label=cmd.label,
             category=cmd.category,
             note=cmd.note,
+            status=cmd.status,
+            order=cmd.order,
         )
 
         await self.repo.add(task)

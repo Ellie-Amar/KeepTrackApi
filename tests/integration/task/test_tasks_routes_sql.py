@@ -63,6 +63,22 @@ async def test_sql_create_then_list_ok(client: AsyncClient, auth_factory):
 
 @pytest.mark.sql
 @pytest.mark.asyncio
+async def test_sql_create_task_with_custom_status_ok(client: AsyncClient, auth_factory):
+    ctx = await auth_factory()
+    response = await client.post(
+        "/v1/tasks",
+        json={"label": "Custom status", "status": "suspended", "order": 99},
+        headers=ctx.headers,
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "suspended"
+    assert body["order"] == 99
+
+
+@pytest.mark.sql
+@pytest.mark.asyncio
 async def test_sql_list_tasks_includes_validations_ok(
     client: AsyncClient, auth_factory
 ):

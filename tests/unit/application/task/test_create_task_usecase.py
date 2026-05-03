@@ -25,6 +25,23 @@ async def test_create_task_ok():
     assert task.label == "Test label"
     assert task.owner_id == cmd.owner_id
     assert task.created_at.tzinfo == timezone.utc
+    assert task.status == "active"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_create_task_with_status_ok():
+    """status provided by caller should be persisted"""
+    repo = TaskRepositoryInMemory()
+    uc = CreateTask(repo)
+    cmd = CreateTaskCommand(
+        owner_id=uuid4(), label="Test label", status="suspended", order=42
+    )
+
+    task = await uc.execute(cmd)
+
+    assert task.status == "suspended"
+    assert task.order == 42
 
 
 @pytest.mark.unit

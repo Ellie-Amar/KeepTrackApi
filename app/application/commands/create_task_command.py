@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from uuid import UUID
-from typing import Optional
+from typing import Literal, Optional
 
 
 class CreateTaskCommand(BaseModel):
@@ -8,3 +8,5 @@ class CreateTaskCommand(BaseModel):
     label: str
     category: Optional[str] = None
     note: Optional[str] = None
+    status: Literal["active", "suspended", "done"] = "active"
+    order: int = 0

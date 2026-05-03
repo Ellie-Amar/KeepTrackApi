@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import Field
@@ -15,6 +15,7 @@ class TaskCreate(ViewModel):
     label: str = Field(..., min_length=1)
     note: str | None = None
     category: str | None = None
+    status: Literal["active", "suspended", "done"] = "active"
     order: int = 0
 
 
@@ -55,5 +56,5 @@ class TaskUpdate(ViewModel):
     label: Optional[str] = Field(default=None, min_length=1)
     note: Optional[str] = None
     category: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[Literal["active", "suspended", "done"]] = None
     order: Optional[int] = None

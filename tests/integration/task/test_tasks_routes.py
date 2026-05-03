@@ -153,6 +153,20 @@ async def test_create_then_list_tasks_ok(set_current_user, client: AsyncClient):
 
 
 @pytest.mark.integration
+async def test_create_task_with_custom_status_ok(set_current_user, client: AsyncClient):
+    set_current_user()
+    response = await client.post(
+        "/v1/tasks",
+        json={"label": "Custom status", "status": "suspended", "order": 99},
+    )
+
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["status"] == "suspended"
+    assert body["order"] == 99
+
+
+@pytest.mark.integration
 async def test_list_tasks_includes_validations_ok(
     set_current_user, client: AsyncClient
 ):
