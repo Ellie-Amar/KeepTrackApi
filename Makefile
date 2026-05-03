@@ -7,6 +7,8 @@ DEFAULT_MARKER ?= "not sql"
 GREEN := \033[0;32m
 NC := \033[0m
 
+.PHONY: help venv install run dev test test-all db-up db-down migrate db-ready test-sql lint format check last_check clean
+
 help: ## List available targets
 	@echo "$(GREEN)Available targets:$(NC)"
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[0;32m%-16s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +22,12 @@ install: ## Install dependencies (venv activated)
 
 run: ## Start the API with reload
 	$(PY) -m uvicorn app.main:app --reload
+
+dev: ## Start DB, apply migrations, run API (Ctrl+C stops DB too)
+	@set -e; \
+	trap '$(MAKE) db-down' INT TERM EXIT; \
+	$(MAKE) db-ready; \
+	$(MAKE) run
 
 test: ## All tests except SQL
 	$(PY) -m pytest -q -m $(DEFAULT_MARKER)
@@ -36,11 +44,15 @@ db-down: ## Stop PostgreSQL
 migrate: ## Apply Alembic migrations
 	$(PY) -m alembic upgrade head
 
+db-ready: ## Start DB and apply migrations
+	$(MAKE) db-up
+	$(MAKE) migrate
+
 test-sql: ## Start DB, run migrations, execute SQL tests
-	make db-up
-	make migrate
-	make test-all
-	make db-down
+	@set -e; \
+	trap '$(MAKE) db-down' INT TERM EXIT; \
+	$(MAKE) db-ready; \
+	$(MAKE) test-all
 
 lint: ## Ruff + mypy (venv activated)
 	$(PY) -m ruff check app tests
@@ -51,9 +63,12 @@ format: ## Black + Ruff --fix
 	$(PY) -m ruff check --fix app tests
 
 last_check:
-	make format
-	make lint
-	make test-sql
+	$(MAKE) check
+
+check: ## Format, lint, then run full SQL test suite
+	$(MAKE) format
+	$(MAKE) lint
+	$(MAKE) test-sql
 
 clean: ## Remove Python / pytest / mypy caches
 	find . -type d -name "__pycache__" -exec rm -rf {} +
