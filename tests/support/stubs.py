@@ -33,3 +33,35 @@ class StubTokenService:
         if self.payload is None:
             raise ValueError("No payload configured for StubTokenService")
         return self.payload
+
+    def issue_email_verification_token(self, *, user_id, email) -> str:  # type: ignore[override]
+        return f"verify::{user_id}"
+
+    def decode_email_verification_token(self, token: str) -> dict:
+        if self.error is not None:
+            raise self.error
+        if self.payload is None:
+            raise ValueError("No payload configured for StubTokenService")
+        return self.payload
+
+
+class StubEmailSender:
+    def __init__(self) -> None:
+        self.messages: list[dict[str, str | None]] = []
+
+    async def send(
+        self,
+        *,
+        to_email: str,
+        subject: str,
+        text_body: str,
+        html_body: str | None = None,
+    ) -> None:
+        self.messages.append(
+            {
+                "to_email": to_email,
+                "subject": subject,
+                "text_body": text_body,
+                "html_body": html_body,
+            }
+        )

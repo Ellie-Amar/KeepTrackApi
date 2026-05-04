@@ -11,6 +11,7 @@ from app.interfaces.dependencies import (
 from app.application.usecases.auth.login_user_usecase import LoginUserUseCase
 from app.application.usecases.auth.refresh_token_usecase import RefreshTokenUseCase
 from app.application.usecases.user.create_user_usecase import CreateUser
+from app.domain.entities.user import User
 from app.infrastructure.repositories.in_memory.user_repository import (
     UserRepositoryInMemory,
 )
@@ -39,6 +40,8 @@ def override_auth_dependencies():
     app.dependency_overrides[get_login_user_uc] = _get_login_user_uc
     app.dependency_overrides[get_refresh_token_uc] = _get_refresh_token_uc
     app.state.test_token_service = token_service
+    app.state.test_user_repo = repo
+    app.state.test_hasher = hasher
 
     yield
 
@@ -46,6 +49,8 @@ def override_auth_dependencies():
     app.dependency_overrides.pop(get_login_user_uc, None)
     app.dependency_overrides.pop(get_refresh_token_uc, None)
     app.state.test_token_service = None
+    app.state.test_user_repo = None
+    app.state.test_hasher = None
 
 
 async def _create_user(client: AsyncClient, email: str, password: str) -> None:
@@ -150,3 +155,26 @@ async def test_login_unknown_user_ko(client: AsyncClient):
     )
 
     assert response.status_code == 401
+
+
+@pytest.mark.integration
+async def test_login_unverified_email_ko(client: AsyncClient):
+    password = "StrongPass123!"
+    repo = app.state.test_user_repo
+    hasher = app.state.test_hasher
+    assert repo is not None
+    assert hasher is not None
+    user = User.new(
+        email="pending@test.com",
+        password_hash=hasher.hash(password),
+        email_verified=False,
+    )
+    await repo.add(user)
+
+    response = await client.post(
+        "/v1/auth/token",
+        data={"username": user.email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == 403

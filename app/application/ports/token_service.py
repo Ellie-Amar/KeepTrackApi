@@ -21,3 +21,11 @@ class ITokenService(Protocol):
     def decode_refresh_token(self, token: str) -> dict: ...
 
     """Return token payload or raise a ValueError on invalid/expired token."""
+
+    def issue_email_verification_token(self, *, user_id: UUID, email: str) -> str: ...
+
+    """Return a compact email verification token string."""
+
+    def decode_email_verification_token(self, token: str) -> dict: ...
+
+    """Return payload or raise a ValueError on invalid/expired token."""

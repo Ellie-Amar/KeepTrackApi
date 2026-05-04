@@ -17,6 +17,9 @@ class UserRepositoryInMemory(IUserRepository):
         else:
             self.users.append(user)
 
+    async def update(self, user: User) -> None:
+        await self.add(user)
+
     async def get_by_id(self, user_id: UUID) -> User | None:
         for u in self.users:
             if u.id == user_id:

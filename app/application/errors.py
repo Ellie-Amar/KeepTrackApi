@@ -15,3 +15,11 @@ class InvalidTokenError(ApplicationError):
 
 class AuthUserNotFoundError(ApplicationError):
     """Raised when token subject does not resolve to a user."""
+
+
+class EmailNotVerifiedError(ApplicationError):
+    """Raised when user email is not verified yet."""
+
+
+class EmailDeliveryError(ApplicationError):
+    """Raised when a verification email cannot be delivered."""

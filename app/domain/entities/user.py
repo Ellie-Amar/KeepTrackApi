@@ -17,6 +17,7 @@ class User(BaseEntity):
     password_hash: str
     display_name: str | None = None
     is_active: bool = True
+    email_verified: bool = False
 
     def __post_init__(self) -> None:
         BaseEntity.__post_init__(
@@ -64,3 +65,9 @@ class User(BaseEntity):
         if not isinstance(new_hash, str) or not new_hash.strip():
             raise ValidationError("password_hash must be a non-empty string")
         return dataclasses.replace(self, password_hash=new_hash).bump_updated_at()
+
+    def verify_email(self) -> User:
+        """Return a copy with verified email and bumped updated_at."""
+        if self.email_verified:
+            return self
+        return dataclasses.replace(self, email_verified=True).bump_updated_at()

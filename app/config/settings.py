@@ -15,6 +15,16 @@ class Settings(BaseSettings):
     jwt_issuer: str = "keeptrack"
     jwt_access_ttl_minutes: int = 60
     jwt_refresh_ttl_minutes: int = 60 * 24 * 7
+    jwt_email_verification_ttl_minutes: int = 60 * 24
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_sender_email: str | None = None
+    smtp_sender_name: str = "KeepTrack"
+
+    email_verification_url_base: str = "http://localhost:8000/v1/users/verify-email"
 
     @model_validator(mode="after")
     def _validate_security_settings(self) -> Settings:

@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.application.commands.login_user_command import LoginUserCommand
 from app.application.commands.refresh_token_command import RefreshTokenCommand
 from app.application.errors import (
+    EmailNotVerifiedError,
     AuthUserNotFoundError,
     InvalidCredentialsError,
     InvalidTokenError,
@@ -35,6 +36,11 @@ async def login_for_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
             headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    except EmailNotVerifiedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
         ) from exc
     return TokenResponse(
         access_token=tokens.access_token,

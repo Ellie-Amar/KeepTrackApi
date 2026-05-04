@@ -18,6 +18,7 @@ class UserRepositorySQL(IUserRepository):
             password_hash=m.password_hash,
             display_name=m.display_name,
             is_active=m.is_active,
+            email_verified=m.email_verified,
             created_at=m.created_at,
             updated_at=m.updated_at,
         )
@@ -30,10 +31,23 @@ class UserRepositorySQL(IUserRepository):
                 password_hash=user.password_hash,
                 display_name=user.display_name,
                 is_active=user.is_active,
+                email_verified=user.email_verified,
                 created_at=user.created_at,
                 updated_at=user.updated_at,
             )
         )
+        await self.session.commit()
+
+    async def update(self, user: User) -> None:
+        row = await self.session.get(UserORM, user.id)
+        if row is None:
+            return
+        row.email = user.email
+        row.password_hash = user.password_hash
+        row.display_name = user.display_name
+        row.is_active = user.is_active
+        row.email_verified = user.email_verified
+        row.updated_at = user.updated_at
         await self.session.commit()
 
     async def get_by_id(self, user_id: UUID) -> User | None:

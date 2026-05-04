@@ -91,3 +91,17 @@ def test_activate_when_already_active_noop_ok():
 def test_deactivate_when_already_inactive_noop_ok():
     user = _base_user().deactivate()
     assert user.deactivate() is user
+
+
+@pytest.mark.unit
+def test_verify_email_sets_flag_and_bumps_timestamp_ok():
+    user = _base_user()
+    verified = user.verify_email()
+    assert verified.email_verified is True
+    assert verified.updated_at > user.updated_at
+
+
+@pytest.mark.unit
+def test_verify_email_when_already_verified_noop_ok():
+    user = _base_user().verify_email()
+    assert user.verify_email() is user

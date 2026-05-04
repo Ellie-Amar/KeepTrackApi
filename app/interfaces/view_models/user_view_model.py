@@ -16,3 +16,4 @@ class UserRead(ViewModel):
     email: EmailStr
     display_name: str | None = None
     is_active: bool
+    email_verified: bool

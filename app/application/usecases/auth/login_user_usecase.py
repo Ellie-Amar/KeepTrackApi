@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.application.commands.login_user_command import LoginUserCommand
-from app.application.errors import InvalidCredentialsError
+from app.application.errors import EmailNotVerifiedError, InvalidCredentialsError
 from app.application.ports.user_repository import IUserRepository
 from app.application.ports.password_hasher import IPasswordHasher
 from app.application.ports.token_service import ITokenService
@@ -24,6 +24,8 @@ class LoginUserUseCase:
         user = await self.user_repo.get_by_email(cmd.email)
         if user is None or not self.hasher.verify(cmd.password, user.password_hash):
             raise InvalidCredentialsError("Invalid credentials")
+        if not user.email_verified:
+            raise EmailNotVerifiedError("Email not verified")
 
         return AuthTokens(
             access_token=self.token_service.issue_access_token(

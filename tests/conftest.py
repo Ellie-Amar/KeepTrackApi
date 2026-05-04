@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 
 # Activate NullPool for SQLAlchemy during tests (prevents cross-loop issues)
 os.environ.setdefault("SQLA_NULLPOOL", "1")
+# Ensure test-specific dependency behavior is enabled during pytest runs.
+os.environ.setdefault("APP_ENV", "test")
 
 import pytest
 import pytest_asyncio
