@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: keeptrack-api
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: sh -c "python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_ISSUER
+        value: keeptrack
+      - key: JWT_ACCESS_TTL_MINUTES
+        value: "60"
+      - key: JWT_REFRESH_TTL_MINUTES
+        value: "10080"
+      - key: JWT_EMAIL_VERIFICATION_TTL_MINUTES
+        value: "1440"
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "2525"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_SENDER_EMAIL
+        sync: false
+      - key: SMTP_SENDER_NAME
+        value: KeepTrack
+      - key: EMAIL_VERIFICATION_URL_BASE
+        sync: false
