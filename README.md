@@ -1,2 +1,2 @@
-# KeepTrack_backend
+# KeepTrack API
 Tool for keeping organized and have history for forgettable asynchronous tasks
