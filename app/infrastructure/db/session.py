@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -27,6 +28,26 @@ if (
     and "+asyncpg" not in DATABASE_URL
 ):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+
+def _normalize_asyncpg_ssl_query(url: str | None) -> str | None:
+    """asyncpg expects `ssl`, while libpq URLs often provide `sslmode`."""
+    if not url or "+asyncpg" not in url or "sslmode=" not in url:
+        return url
+    split = urlsplit(url)
+    params = parse_qsl(split.query, keep_blank_values=True)
+    normalized: list[tuple[str, str]] = []
+    for key, value in params:
+        if key == "sslmode":
+            normalized.append(("ssl", value))
+        else:
+            normalized.append((key, value))
+    return urlunsplit(
+        (split.scheme, split.netloc, split.path, urlencode(normalized), split.fragment)
+    )
+
+
+DATABASE_URL = _normalize_asyncpg_ssl_query(DATABASE_URL)
 
 # Enable NullPool only when tests ask for it (local tests, CI)
 USE_NULLPOOL = os.getenv("SQLA_NULLPOOL") == "1"
